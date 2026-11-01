@@ -19,7 +19,8 @@ const FRAME_SAMPLES: usize = 320; // 20 ms @ 16 kHz
 static SELECTED_MIC_DEVICE: Mutex<String> = Mutex::new(String::new());
 static SELECTED_CAMERA_DEVICE: Mutex<String> = Mutex::new(String::new());
 static CACHED_DEVICES: Mutex<Option<(Vec<String>, Vec<String>)>> = Mutex::new(None);
-
+static SHARED_CAM_H264: Mutex<(u64, Vec<u8>, Vec<u8>)> =
+    Mutex::new((0, Vec::new(), Vec::new()));
 pub fn set_selected_mic_device(name: &str) {
     if let Ok(mut g) = SELECTED_MIC_DEVICE.lock() {
         *g = name.trim().to_string();
@@ -40,6 +41,24 @@ pub fn selected_camera_device() -> String {
     SELECTED_CAMERA_DEVICE.lock().map(|g| g.clone()).unwrap_or_default()
 }
 
+
+/// Check whether `ffmpeg` is installed and reachable in `PATH` (cached after first probe).
+pub fn is_ffmpeg_available() -> bool {
+    static FFMPEG_OK: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
+        let mut cmd = std::process::Command::new("ffmpeg");
+        cmd.arg("-version")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000);
+        }
+        cmd.status().map(|s| s.success()).unwrap_or(false)
+    });
+    *FFMPEG_OK
+}
 /// Return cached `(mic_devices, camera_devices)` or enumerate once (with `refresh=true` to rescan).
 pub fn list_media_devices(refresh: bool) -> (Vec<String>, Vec<String>) {
     if !refresh {
@@ -83,12 +102,28 @@ fn enumerate_ffmpeg_cameras() -> Vec<String> {
                 if line.contains("Alternative name") {
                     continue;
                 }
-                if (line.contains("(video)") || line.contains("(none)")) && line.contains('"') {
+                if line.contains("(video)") && line.contains('"') {
                     let parts: Vec<&str> = line.split('"').collect();
                     if parts.len() >= 2 {
                         let name = parts[1].trim().to_string();
                         if !name.is_empty() && !cams.contains(&name) {
                             cams.push(name);
+                        }
+                    }
+                }
+            }
+            if cams.is_empty() {
+                for line in stderr.lines() {
+                    if line.contains("Alternative name") {
+                        continue;
+                    }
+                    if line.contains("(none)") && line.contains('"') {
+                        let parts: Vec<&str> = line.split('"').collect();
+                        if parts.len() >= 2 {
+                            let name = parts[1].trim().to_string();
+                            if !name.is_empty() && !cams.contains(&name) {
+                                cams.push(name);
+                            }
                         }
                     }
                 }
@@ -185,6 +220,11 @@ impl MediaHandle {
         let mic_muted = Arc::new(AtomicBool::new(false));
         let cam_enabled = Arc::new(AtomicBool::new(is_video));
         let mut threads = Vec::new();
+        let slot_idx = if udp_rtp_sock.is_some() {
+            local_port
+        } else {
+            0
+        };
         let fallback_sock = if udp_rtp_sock.is_none() {
             let s = UdpSocket::bind(format!("0.0.0.0:{local_port}"))?;
             let _ = s.set_read_timeout(Some(Duration::from_millis(10)));
@@ -210,6 +250,7 @@ impl MediaHandle {
                 partner_uid_u32,
                 is_caller,
                 relay_token,
+                slot_idx,
                 is_video,
                 gui_tx,
                 egui_ctx,
@@ -300,6 +341,53 @@ fn drain_rtcp_inbox() -> Vec<Vec<u8>> {
 fn clear_rtcp_inbox() {
     if let Ok(mut q) = RTCP_INBOX.lock() {
         q.clear();
+    }
+}
+
+/// Cross-leg audio conference bridge for multi-member group calls (up to 4 slots).
+/// Decoded PCM from slot `s` is pushed into every other slot's queue and mixed into
+/// each slot's outbound Opus stream so all group call participants hear one another.
+static PEER_AUDIO_BRIDGE: [Mutex<VecDeque<f32>>; 4] = [
+    Mutex::new(VecDeque::new()),
+    Mutex::new(VecDeque::new()),
+    Mutex::new(VecDeque::new()),
+    Mutex::new(VecDeque::new()),
+];
+const PEER_BRIDGE_MAX_SAMPLES: usize = FRAME_SAMPLES * 8;
+
+fn push_peer_bridge_audio(from_slot: u16, pcm: &[f32]) {
+    let idx = from_slot as usize;
+    if idx >= PEER_AUDIO_BRIDGE.len() {
+        return;
+    }
+    for (other, q_mtx) in PEER_AUDIO_BRIDGE.iter().enumerate() {
+        if other == idx {
+            continue;
+        }
+        if let Ok(mut q) = q_mtx.lock() {
+            let q_len = q.len();
+            if q_len + pcm.len() > PEER_BRIDGE_MAX_SAMPLES {
+                let drop_n = ((q_len + pcm.len()) - PEER_BRIDGE_MAX_SAMPLES).min(q_len);
+                q.drain(..drop_n);
+            }
+            q.extend(pcm.iter().copied());
+        }
+    }
+}
+
+fn mix_peer_bridge_audio(for_slot: u16, frame: &mut [f32]) {
+    let idx = for_slot as usize;
+    if idx >= PEER_AUDIO_BRIDGE.len() {
+        return;
+    }
+    if let Ok(mut q) = PEER_AUDIO_BRIDGE[idx].lock() {
+        if q.len() >= frame.len() {
+            for s in frame.iter_mut() {
+                if let Some(p) = q.pop_front() {
+                    *s = (*s + p).clamp(-1.0, 1.0);
+                }
+            }
+        }
     }
 }
 
@@ -753,8 +841,10 @@ fn spawn_camera_capture_thread(
 
         let mut current_dev = String::new();
         let mut child_opt: Option<std::process::Child> = None;
+        let mut failed_devs: Vec<String> = Vec::new();
         let mut read_buf = [0u8; 8192];
         let mut stream_acc: Vec<u8> = Vec::with_capacity(65536);
+        let mut warned_missing = false;
 
         // Optional local preview decoder (`ffmpeg` H.264 -> 240x180 RGBA)
         let (prev_tx, prev_rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(15);
@@ -774,16 +864,46 @@ fn spawn_camera_capture_thread(
                 continue;
             }
 
+            if !is_ffmpeg_available() {
+                if !warned_missing {
+                    warned_missing = true;
+                    crate::voip_log::line("VCAM", "ffmpeg not found in PATH; camera capture unavailable");
+                    if let Some(ref gtx) = gui_tx {
+                        let _ = gtx.send(crate::gui::GuiEvent::StatusUpdate(
+                            "⚠️ Không tìm thấy ffmpeg trong PATH để bật Camera (cài bằng: winget install Gyan.FFmpeg)".into(),
+                        ));
+                    }
+                    if let Some(ref ctx) = egui_ctx {
+                        ctx.request_repaint();
+                    }
+                }
+                thread::sleep(Duration::from_millis(500));
+                continue;
+            }
+
             let desired = {
                 let sel = selected_camera_device();
-                if !sel.is_empty() {
+                if !sel.is_empty() && !failed_devs.contains(&sel) {
                     sel
                 } else {
                     let (_, cams) = list_media_devices(false);
-                    cams.into_iter().next().unwrap_or_default()
+                    cams.into_iter()
+                        .find(|c| !failed_devs.contains(c))
+                        .unwrap_or_default()
                 }
             };
             if desired.is_empty() {
+                if !warned_missing {
+                    warned_missing = true;
+                    if let Some(ref gtx) = gui_tx {
+                        let _ = gtx.send(crate::gui::GuiEvent::StatusUpdate(
+                            "⚠️ Không tìm thấy thiết bị Camera khả dụng trên máy".into(),
+                        ));
+                    }
+                    if let Some(ref ctx) = egui_ctx {
+                        ctx.request_repaint();
+                    }
+                }
                 thread::sleep(Duration::from_millis(250));
                 continue;
             }
@@ -876,6 +996,10 @@ fn spawn_camera_capture_thread(
                 Ok(0) | Err(_) => {
                     let _ = child.kill();
                     child_opt = None;
+                    if stream_acc.is_empty() && !current_dev.is_empty() && !failed_devs.contains(&current_dev) {
+                        crate::voip_log::line("VCAM", format!("webcam device produced 0 bytes, marking failed: {current_dev}"));
+                        failed_devs.push(current_dev.clone());
+                    }
                     thread::sleep(Duration::from_millis(250));
                 }
                 Ok(n) => {
@@ -885,6 +1009,13 @@ fn spawn_camera_capture_thread(
                         stream_acc.drain(..pos);
                         let clean = strip_leading_aud(&chunk);
                         if !clean.is_empty() {
+                            if let Ok(mut sh) = SHARED_CAM_H264.lock() {
+                                sh.0 = sh.0.wrapping_add(1);
+                                if au_has_idr(&clean) {
+                                    sh.2 = clean.clone();
+                                }
+                                sh.1 = clean.clone();
+                            }
                             let _ = prev_tx.try_send(clean.clone());
                             let _ = cam_au_tx.try_send(clean);
                         }
@@ -1101,6 +1232,7 @@ fn run_media_loop(
     partner_uid_u32: u32,
     is_caller: bool,
     relay_token: u32,
+    slot_idx: u16,
     is_video: bool,
     gui_tx: Option<std::sync::mpsc::Sender<crate::gui::GuiEvent>>,
     egui_ctx: Option<eframe::egui::Context>,
@@ -1110,22 +1242,29 @@ fn run_media_loop(
     let video_synced = Arc::new(AtomicBool::new(false));
     let want_keyframe = Arc::new(AtomicBool::new(false));
     let mut decoder_active = false;
+    let tex_key = if slot_idx == 0 {
+        "call_remote_video".to_string()
+    } else {
+        format!("call_remote_video_{slot_idx}")
+    };
     if let (Some(tx), Some(ctx)) = (gui_tx.clone(), egui_ctx.clone()) {
         let stop_v = stop.clone();
         let synced_v = video_synced.clone();
         decoder_active = true;
         thread::spawn(move || {
-            run_h264_ffmpeg_decoder(stop_v, h264_rx, tx, ctx, synced_v);
+            run_h264_ffmpeg_decoder(stop_v, h264_rx, tx, ctx, synced_v, tex_key);
         });
     }
-    spawn_camera_capture_thread(
-        stop.clone(),
-        cam_enabled.clone(),
-        want_keyframe.clone(),
-        cam_au_tx,
-        gui_tx,
-        egui_ctx,
-    );
+    if slot_idx == 0 {
+        spawn_camera_capture_thread(
+            stop.clone(),
+            cam_enabled.clone(),
+            want_keyframe.clone(),
+            cam_au_tx,
+            gui_tx,
+            egui_ctx,
+        );
+    }
     let mut fu_a_buf: Vec<u8> = Vec::with_capacity(65536);
     let host = cpal::default_host();
     let preferred_mic = selected_mic_device();
@@ -1336,6 +1475,7 @@ fn run_media_loop(
             if mic_muted.load(Ordering::Relaxed) {
                 frame.fill(0.0);
             }
+            mix_peer_bridge_audio(slot_idx, &mut frame);
             let mut out = vec![0u8; 4000];
             match encoder.encode_float(&frame, &mut out) {
                 Ok(n) => {
@@ -1385,6 +1525,7 @@ fn run_media_loop(
                 || want_keyframe.swap(false, Ordering::Relaxed);
 
             // Drain latest live webcam access unit if available
+            // Drain latest live webcam access unit if available (or read shared webcam stream for extra legs)
             let mut latest_cam_au: Option<Vec<u8>> = None;
             while let Ok(au) = cam_au_rx.try_recv() {
                 if au_has_idr(&au) {
@@ -1392,7 +1533,16 @@ fn run_media_loop(
                 }
                 latest_cam_au = Some(au);
             }
-
+            if latest_cam_au.is_none() && slot_idx > 0 {
+                if let Ok(sh) = SHARED_CAM_H264.lock() {
+                    if !sh.2.is_empty() {
+                        last_cam_idr = Some(sh.2.clone());
+                    }
+                    if !sh.1.is_empty() {
+                        latest_cam_au = Some(sh.1.clone());
+                    }
+                }
+            }
             let au_bytes: Vec<u8> = if cam_enabled.load(Ordering::Relaxed) {
                 if let Some(au) = latest_cam_au {
                     if force_kf && !au_has_idr(&au) {
@@ -1599,6 +1749,7 @@ fn run_media_loop(
                     if let Some(payload) = extract_rtp_opus_payload(inner_rtp) {
                         let mut pcm = vec![0f32; FRAME_SAMPLES];
                         if decoder.decode_float(payload, &mut pcm, false).is_ok() {
+                            push_peer_bridge_audio(slot_idx, &pcm);
                             if let Ok(mut b) = output_buf.lock() {
                                 b.extend_from_slice(&pcm);
                             }
@@ -1793,6 +1944,7 @@ fn run_h264_ffmpeg_decoder(
     gui_tx: std::sync::mpsc::Sender<crate::gui::GuiEvent>,
     egui_ctx: eframe::egui::Context,
     synced: Arc<AtomicBool>,
+    tex_key: String,
 ) {
     use std::io::{Read, Write};
     use std::process::{Command, Stdio};
@@ -1933,7 +2085,7 @@ fn run_h264_ffmpeg_decoder(
             let color_img =
                 eframe::egui::ColorImage::from_rgba_unmultiplied([cw, ch], &cropped);
             let _ = gui_tx.send(crate::gui::GuiEvent::StickerImageReady {
-                key: "call_remote_video".to_string(),
+                key: tex_key.clone(),
                 image: color_img,
             });
             egui_ctx.request_repaint();

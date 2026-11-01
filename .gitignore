@@ -27,6 +27,15 @@ call_trace.log
 
 # Generated graph/tooling output
 graphify-out/
+/book/
+
+# Local agent tooling & skill kit (machine-specific, symlinked paths)
+.claude/
+.omp/
+.agents/
+.opencode/
+.engineered-config.json
+.scratch/
 
 # Temporary and backup files
 *.tmp
@@ -43,3 +52,6 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+
+# mdBook output (docs site)
+book/

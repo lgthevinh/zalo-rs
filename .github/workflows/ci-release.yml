@@ -9,18 +9,54 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
   CMAKE_POLICY_VERSION_MINIMUM: "3.5"
 
 jobs:
+  # 0. Single source of truth for the release version. Every build job consumes this output.
+  prepare:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Resolve version and validate release tag
+        id: version
+        run: |
+          set -euo pipefail
+          version=$(cargo metadata --locked --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "ctdozlite") | .version')
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            tag_version="${GITHUB_REF_NAME#v}"
+            if [[ "$tag_version" != "$version" ]]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match Cargo.toml version $version"
+              exit 1
+            fi
+            git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::Tag commit $GITHUB_SHA is not on main"
+              exit 1
+            fi
+          fi
+
   # 1. Universal Linux packages built on Ubuntu 22.04 LTS (glibc 2.35, statically linked libopus + sqlite3 + rustls)
   # Produces: .deb (Debian/Ubuntu/Mint/Kali/Pop!_OS), .rpm (Fedora/RHEL/Rocky/Alma/openSUSE), .AppImage (all distros), .tar.gz (Arch/Void/Gentoo/any distro)
   linux-packages:
     name: Linux Multi-Format (.deb / .rpm / .AppImage / .tar.gz)
+    needs: prepare
     runs-on: ubuntu-22.04
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -36,19 +72,18 @@ jobs:
         run: cargo test --locked
       - name: Build release binary (static libopus & sqlite3)
         run: |
-          cargo build --release --locked --bin zalo-rust
-          strip target/release/zalo-rust
-          chmod +x packaging/linux/ctdozlite packaging/linux/install.sh packaging/linux/uninstall.sh
+          cargo build --release --locked --bin ctdozlite
+          strip target/release/ctdozlite
+          chmod +x packaging/linux/install.sh packaging/linux/uninstall.sh
       - name: Package .deb (Debian / Ubuntu 22.04+ / Linux Mint / Kali / Pop!_OS / Zorin)
         run: |
           mkdir -p dist pkg_deb/DEBIAN pkg_deb/usr/bin pkg_deb/usr/share/applications pkg_deb/usr/share/icons/hicolor/256x256/apps
-          cp target/release/zalo-rust pkg_deb/usr/bin/zalo-rust
-          cp packaging/linux/ctdozlite pkg_deb/usr/bin/ctdozlite
+          cp target/release/ctdozlite pkg_deb/usr/bin/ctdozlite
           cp packaging/linux/ctdozlite.desktop pkg_deb/usr/share/applications/ctdozlite.desktop
           cp src/assets/app_icon.png pkg_deb/usr/share/icons/hicolor/256x256/apps/ctdozlite.png
-          cat > pkg_deb/DEBIAN/control << 'EOF'
+          cat > pkg_deb/DEBIAN/control << EOF
           Package: ctdozlite
-          Version: 0.0.1
+          Version: ${VERSION}
           Section: net
           Priority: optional
           Architecture: amd64
@@ -57,13 +92,13 @@ jobs:
           Maintainer: TIPC1110 <tienichpc1110@gmail.com>
           Description: Lightweight native Zalo PC client written in Rust
           EOF
-          dpkg-deb --build --root-owner-group pkg_deb dist/ctdozlite_0.0.1_amd64.deb
+          dpkg-deb --build --root-owner-group pkg_deb "dist/ctdozlite_${VERSION}_amd64.deb"
       - name: Package .rpm (Fedora / RHEL / Rocky / AlmaLinux / CentOS / openSUSE)
         run: |
           mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
           cat > rpmbuild/SPECS/ctdozlite.spec << 'EOF'
           Name:           ctdozlite
-          Version:        0.0.1
+          Version:        @VERSION@
           Release:        1
           Summary:        Native Zalo Desktop Client written in Rust
           License:        MIT OR Apache-2.0
@@ -79,24 +114,22 @@ jobs:
           mkdir -p %{buildroot}/usr/bin
           mkdir -p %{buildroot}/usr/share/applications
           mkdir -p %{buildroot}/usr/share/icons/hicolor/256x256/apps
-          install -m 755 %{_topdir}/../target/release/zalo-rust %{buildroot}/usr/bin/zalo-rust
-          install -m 755 %{_topdir}/../packaging/linux/ctdozlite %{buildroot}/usr/bin/ctdozlite
+          install -m 755 %{_topdir}/../target/release/ctdozlite %{buildroot}/usr/bin/ctdozlite
           install -m 644 %{_topdir}/../packaging/linux/ctdozlite.desktop %{buildroot}/usr/share/applications/ctdozlite.desktop
           install -m 644 %{_topdir}/../src/assets/app_icon.png %{buildroot}/usr/share/icons/hicolor/256x256/apps/ctdozlite.png
 
           %files
-          /usr/bin/zalo-rust
           /usr/bin/ctdozlite
           /usr/share/applications/ctdozlite.desktop
           /usr/share/icons/hicolor/256x256/apps/ctdozlite.png
           EOF
+          sed -i "s/@VERSION@/${VERSION}/" rpmbuild/SPECS/ctdozlite.spec
           rpmbuild --define "_topdir $(pwd)/rpmbuild" -bb rpmbuild/SPECS/ctdozlite.spec
-          cp rpmbuild/RPMS/x86_64/*.rpm dist/ctdozlite-0.0.1-1.x86_64.rpm
+          cp rpmbuild/RPMS/x86_64/*.rpm "dist/ctdozlite-${VERSION}-1.x86_64.rpm"
       - name: Package .AppImage (Universal single-file executable for all Linux distros)
         run: |
           mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
-          cp target/release/zalo-rust AppDir/usr/bin/zalo-rust
-          cp packaging/linux/ctdozlite AppDir/usr/bin/ctdozlite
+          cp target/release/ctdozlite AppDir/usr/bin/ctdozlite
           cp packaging/linux/ctdozlite.desktop AppDir/ctdozlite.desktop
           cp packaging/linux/ctdozlite.desktop AppDir/usr/share/applications/ctdozlite.desktop
           cp src/assets/app_icon.png AppDir/ctdozlite.png
@@ -107,28 +140,27 @@ jobs:
           HERE="$(dirname "$(readlink -f "${0}")")"
           export PATH="${HERE}/usr/bin:${PATH}"
           if [ $# -eq 0 ]; then
-              exec "${HERE}/usr/bin/zalo-rust" --gui
+              exec "${HERE}/usr/bin/ctdozlite" --gui
           else
-              exec "${HERE}/usr/bin/zalo-rust" "$@"
+              exec "${HERE}/usr/bin/ctdozlite" "$@"
           fi
           EOF
           chmod +x AppDir/AppRun
           curl -fsSL -o appimagetool "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
           chmod +x appimagetool
-          ARCH=x86_64 ./appimagetool --appimage-extract-and-run AppDir dist/ctdozlite-0.0.1-x86_64.AppImage
-          chmod +x dist/ctdozlite-0.0.1-x86_64.AppImage
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run AppDir "dist/ctdozlite-${VERSION}-x86_64.AppImage"
+          chmod +x "dist/ctdozlite-${VERSION}-x86_64.AppImage"
       - name: Package portable .tar.gz with universal install.sh (Arch / Manjaro / Gentoo / Void / any Linux)
         run: |
-          STAGE="ctdozlite-0.0.1-linux-x86_64"
+          STAGE="ctdozlite-${VERSION}-linux-x86_64"
           mkdir -p "$STAGE"
-          cp target/release/zalo-rust "$STAGE/zalo-rust"
-          cp packaging/linux/ctdozlite "$STAGE/ctdozlite"
+          cp target/release/ctdozlite "$STAGE/ctdozlite"
           cp packaging/linux/install.sh "$STAGE/install.sh"
           cp packaging/linux/uninstall.sh "$STAGE/uninstall.sh"
           cp packaging/linux/ctdozlite.desktop "$STAGE/ctdozlite.desktop"
           cp src/assets/app_icon.png "$STAGE/ctdozlite.png"
           cp README.md LICENSE-MIT LICENSE-APACHE "$STAGE/"
-          chmod +x "$STAGE/zalo-rust" "$STAGE/ctdozlite" "$STAGE/install.sh" "$STAGE/uninstall.sh"
+          chmod +x "$STAGE/ctdozlite" "$STAGE/install.sh" "$STAGE/uninstall.sh"
           tar -czf "dist/${STAGE}.tar.gz" "$STAGE"
       - uses: actions/upload-artifact@v4
         with:
@@ -138,7 +170,10 @@ jobs:
   # 2. Legacy Linux build on Debian 11 Bullseye (glibc 2.31) for older distros (Ubuntu 20.04, Debian 11, Mint 20, RHEL/Rocky 8.x/9.x)
   linux-legacy-glibc231:
     name: Linux Legacy glibc 2.31 (Debian 11 / Ubuntu 20.04+)
+    needs: prepare
     runs-on: ubuntu-22.04
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
     container:
       image: rust:bullseye
     steps:
@@ -158,17 +193,16 @@ jobs:
           key: bullseye-glibc231
       - name: Build legacy release binary & .deb + .tar.gz
         run: |
-          cargo build --release --locked --bin zalo-rust
-          strip target/release/zalo-rust
-          chmod +x packaging/linux/ctdozlite packaging/linux/install.sh packaging/linux/uninstall.sh
+          cargo build --release --locked --bin ctdozlite
+          strip target/release/ctdozlite
+          chmod +x packaging/linux/install.sh packaging/linux/uninstall.sh
           mkdir -p dist pkg_deb/DEBIAN pkg_deb/usr/bin pkg_deb/usr/share/applications pkg_deb/usr/share/icons/hicolor/256x256/apps
-          cp target/release/zalo-rust pkg_deb/usr/bin/zalo-rust
-          cp packaging/linux/ctdozlite pkg_deb/usr/bin/ctdozlite
+          cp target/release/ctdozlite pkg_deb/usr/bin/ctdozlite
           cp packaging/linux/ctdozlite.desktop pkg_deb/usr/share/applications/ctdozlite.desktop
           cp src/assets/app_icon.png pkg_deb/usr/share/icons/hicolor/256x256/apps/ctdozlite.png
-          cat > pkg_deb/DEBIAN/control << 'EOF'
+          cat > pkg_deb/DEBIAN/control << EOF
           Package: ctdozlite
-          Version: 0.0.1
+          Version: ${VERSION}
           Section: net
           Priority: optional
           Architecture: amd64
@@ -177,18 +211,17 @@ jobs:
           Maintainer: TIPC1110 <tienichpc1110@gmail.com>
           Description: Lightweight native Zalo PC client written in Rust (glibc 2.31+ compatible)
           EOF
-          dpkg-deb --build --root-owner-group pkg_deb dist/ctdozlite_0.0.1_legacy_glibc2.31_amd64.deb
+          dpkg-deb --build --root-owner-group pkg_deb "dist/ctdozlite_${VERSION}_legacy_glibc2.31_amd64.deb"
 
-          STAGE="ctdozlite-0.0.1-linux-x86_64-legacy-glibc2.31"
+          STAGE="ctdozlite-${VERSION}-linux-x86_64-legacy-glibc2.31"
           mkdir -p "$STAGE"
-          cp target/release/zalo-rust "$STAGE/zalo-rust"
-          cp packaging/linux/ctdozlite "$STAGE/ctdozlite"
+          cp target/release/ctdozlite "$STAGE/ctdozlite"
           cp packaging/linux/install.sh "$STAGE/install.sh"
           cp packaging/linux/uninstall.sh "$STAGE/uninstall.sh"
           cp packaging/linux/ctdozlite.desktop "$STAGE/ctdozlite.desktop"
           cp src/assets/app_icon.png "$STAGE/ctdozlite.png"
           cp README.md LICENSE-MIT LICENSE-APACHE "$STAGE/"
-          chmod +x "$STAGE/zalo-rust" "$STAGE/ctdozlite" "$STAGE/install.sh" "$STAGE/uninstall.sh"
+          chmod +x "$STAGE/ctdozlite" "$STAGE/install.sh" "$STAGE/uninstall.sh"
           tar -czf "dist/${STAGE}.tar.gz" "$STAGE"
       - uses: actions/upload-artifact@v4
         with:
@@ -197,7 +230,10 @@ jobs:
 
   windows-exe:
     name: Windows (MSVC x86_64 + .exe)
+    needs: prepare
     runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -207,92 +243,157 @@ jobs:
       - name: Build release binary & installer
         shell: pwsh
         run: |
-          cargo build --release --locked --bin zalo-rust
+          cargo build --release --locked --bin ctdozlite
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item target\release\zalo-rust.exe dist\ctdozlite-0.0.1-portable-windows-x86_64.exe
-          iscc packaging\windows\installer.iss
-          Move-Item dist\ctdozlite-setup-windows-x86_64.exe dist\ctdozlite-0.0.1-setup-windows-x86_64.exe -Force
+          Copy-Item target\release\ctdozlite.exe "dist\ctdozlite-$($env:VERSION)-portable-windows-x86_64.exe"
+          iscc "/DMyAppVersion=$($env:VERSION)" packaging\windows\installer.iss
+          Move-Item dist\ctdozlite-setup-windows-x86_64.exe "dist\ctdozlite-$($env:VERSION)-setup-windows-x86_64.exe" -Force
       - uses: actions/upload-artifact@v4
         with:
           name: ctdozlite-windows-exe
           path: dist/*.exe
 
   macos-dmg:
-    name: macOS (Apple Silicon + .dmg)
+    name: macOS (Apple Silicon arm64 + Intel x86_64 + Universal .dmg)
+    needs: prepare
     runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+      LIBOPUS_STATIC: "1"
+      LIBOPUS_NO_PKG: "1"
+      OPUS_STATIC: "1"
+      OPUS_NO_PKG: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
       - uses: Swatinem/rust-cache@v2
-      - name: Install Homebrew dependencies
-        run: brew install cmake pkg-config opus
-      - name: Run test suite
-        run: cargo test --locked
-      - name: Build release app bundle & .dmg
+      - name: Ensure CMake is available (without Homebrew dynamic libopus)
         run: |
-          cargo build --release --locked --bin zalo-rust
-          mkdir -p dist/dmg/ctdozlite.app/Contents/MacOS
-          mkdir -p dist/dmg/ctdozlite.app/Contents/Resources
-          cp target/release/zalo-rust dist/dmg/ctdozlite.app/Contents/MacOS/zalo-rust
-          cp packaging/macos/Info.plist dist/dmg/ctdozlite.app/Contents/Info.plist
-          ln -s /Applications dist/dmg/Applications
-          hdiutil create -volname "ctdozlite" -srcfolder dist/dmg -ov -format UDZO dist/ctdozlite-0.0.1-macos.dmg
+          command -v cmake >/dev/null 2>&1 || brew install cmake
+          cmake --version
+      - name: Run test suite
+        run: |
+          CMAKE_TOOLCHAIN_FILE="$PWD/packaging/macos/toolchain-arm64.cmake" \
+            cargo test --locked
+      - name: Build release binaries (Apple Silicon arm64 + Intel x86_64 + Universal) & .dmg packages
+        run: |
+          set -euo pipefail
+          VER="${VERSION:-0.0.3}"
+
+          echo "=== [1/4] Building Apple Silicon (aarch64-apple-darwin) ==="
+          CMAKE_TOOLCHAIN_FILE="$PWD/packaging/macos/toolchain-arm64.cmake" \
+            cargo build --release --locked --target aarch64-apple-darwin --bin ctdozlite
+
+          echo "=== [2/4] Building Mac Intel (x86_64-apple-darwin) ==="
+          CMAKE_TOOLCHAIN_FILE="$PWD/packaging/macos/toolchain-x86_64.cmake" \
+            cargo build --release --locked --target x86_64-apple-darwin --bin ctdozlite
+
+          echo "=== [3/4] Creating Universal Binary (arm64 + x86_64) via lipo ==="
+          mkdir -p target/universal-apple-darwin/release
+          lipo -create \
+            target/aarch64-apple-darwin/release/ctdozlite \
+            target/x86_64-apple-darwin/release/ctdozlite \
+            -output target/universal-apple-darwin/release/ctdozlite
+          lipo -info target/universal-apple-darwin/release/ctdozlite
+
+          echo "=== Verifying zero Homebrew dynamic library dependencies ==="
+          otool -L target/aarch64-apple-darwin/release/ctdozlite
+          otool -L target/x86_64-apple-darwin/release/ctdozlite
+          if otool -L target/universal-apple-darwin/release/ctdozlite | grep -E '/opt/homebrew|/usr/local'; then
+            echo "ERROR: Binary still links against Homebrew dylib!"
+            exit 1
+          fi
+
+          echo "=== Generating AppIcon.icns from src/assets/app_icon.png ==="
+          mkdir -p build_icon/AppIcon.iconset
+          for sz in 16 32 128 256 512; do
+            sips -s format png -z $sz $sz src/assets/app_icon.png --out "build_icon/AppIcon.iconset/icon_${sz}x${sz}.png" >/dev/null
+            sz2=$((sz * 2))
+            sips -s format png -z $sz2 $sz2 src/assets/app_icon.png --out "build_icon/AppIcon.iconset/icon_${sz}x${sz}@2x.png" >/dev/null
+          done
+          iconutil -c icns build_icon/AppIcon.iconset -o build_icon/AppIcon.icns || true
+
+          mkdir -p dist
+
+          package_dmg() {
+            local bin_path="$1"
+            local dmg_out="$2"
+            local vol_name="$3"
+            local stage_dir
+            stage_dir="$(mktemp -d)"
+            mkdir -p "$stage_dir/ctdozlite.app/Contents/MacOS"
+            mkdir -p "$stage_dir/ctdozlite.app/Contents/Resources"
+            cp "$bin_path" "$stage_dir/ctdozlite.app/Contents/MacOS/ctdozlite"
+            chmod +x "$stage_dir/ctdozlite.app/Contents/MacOS/ctdozlite"
+            cp packaging/macos/Info.plist "$stage_dir/ctdozlite.app/Contents/Info.plist"
+            plutil -replace CFBundleShortVersionString -string "$VER" "$stage_dir/ctdozlite.app/Contents/Info.plist"
+            printf 'APPL????' > "$stage_dir/ctdozlite.app/Contents/PkgInfo"
+            if [ -f build_icon/AppIcon.icns ]; then
+              cp build_icon/AppIcon.icns "$stage_dir/ctdozlite.app/Contents/Resources/AppIcon.icns"
+            fi
+            xattr -cr "$stage_dir/ctdozlite.app" || true
+            codesign --force --deep --sign - "$stage_dir/ctdozlite.app"
+            ln -s /Applications "$stage_dir/Applications"
+
+            for attempt in 1 2 3 4 5; do
+              if hdiutil create -volname "$vol_name" -srcfolder "$stage_dir" -ov -fs HFS+ -format UDZO "$dmg_out"; then
+                break
+              fi
+              echo "hdiutil attempt $attempt failed, retrying in 3s..."
+              sleep 3
+            done
+            rm -rf "$stage_dir"
+            test -f "$dmg_out"
+          }
+
+          echo "=== [4/4] Packaging .dmg installers (Apple Silicon, Intel, Universal) ==="
+          package_dmg "target/aarch64-apple-darwin/release/ctdozlite" "dist/ctdozlite-${VER}-macos-arm64.dmg" "ctdozlite (Apple Silicon)"
+          package_dmg "target/x86_64-apple-darwin/release/ctdozlite" "dist/ctdozlite-${VER}-macos-x86_64.dmg" "ctdozlite (Intel)"
+          package_dmg "target/universal-apple-darwin/release/ctdozlite" "dist/ctdozlite-${VER}-macos.dmg" "ctdozlite"
+          ls -lh dist/*.dmg
       - uses: actions/upload-artifact@v4
         with:
           name: ctdozlite-macos-dmg
           path: dist/*.dmg
-
   release:
     name: Publish GitHub Release
-    needs: [linux-packages, linux-legacy-glibc231, windows-exe, macos-dmg]
-    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.linux-packages.result == 'success' && needs.windows-exe.result == 'success' && needs.macos-dmg.result == 'success'
+    needs: [prepare, linux-packages, linux-legacy-glibc231, windows-exe, macos-dmg]
+    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.prepare.result == 'success' && needs.linux-packages.result == 'success' && needs.linux-legacy-glibc231.result == 'success' && needs.windows-exe.result == 'success' && needs.macos-dmg.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: release_assets
           merge-multiple: true
-      - name: Generate SHA256SUMS.txt
+      - name: Generate SHA256SUMS.txt & latest.json update manifest
         run: |
           cd release_assets
           sha256sum * > SHA256SUMS.txt
+          VER="${GITHUB_REF_NAME#v}"
+          cat > latest.json << EOF
+          {
+            "version": "${VER}",
+            "tag_name": "${GITHUB_REF_NAME}",
+            "repository": "https://github.com/ctdoteam1110/ctdozlite"
+          }
+          EOF
           cat SHA256SUMS.txt
+      # Install instructions live in docs/CAI_DAT.md. The release body only links to
+      # them; the PR list, contributors and Full Changelog are generated by GitHub.
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          name: ctdozlite ${{ github.ref_name }}
           files: release_assets/*
           generate_release_notes: true
           body: |
-            ### ctdozlite ${{ github.ref_name }} — Native Zalo Desktop Client in Rust
-
-            #### 🐧 Bản cài đặt cho Linux (Hỗ trợ mọi bản phân phối Linux)
-            - **Ubuntu 22.04 / 24.04 / Debian 12+ / Linux Mint 21+ / Kali / Pop!_OS / Zorin:**
-              Tải `ctdozlite_0.0.1_amd64.deb` và chạy:
-              ```bash
-              sudo apt install ./ctdozlite_0.0.1_amd64.deb
-              ```
-            - **Ubuntu 20.04 / Debian 11 / Linux Mint 20 (Máy Linux đời cũ `glibc >= 2.31`):**
-              Tải `ctdozlite_0.0.1_legacy_glibc2.31_amd64.deb` và chạy:
-              ```bash
-              sudo apt install ./ctdozlite_0.0.1_legacy_glibc2.31_amd64.deb
-              ```
-            - **Fedora / RHEL / Rocky Linux / AlmaLinux / CentOS / openSUSE:**
-              Tải `ctdozlite-0.0.1-1.x86_64.rpm` và chạy:
-              ```bash
-              sudo dnf install ./ctdozlite-0.0.1-1.x86_64.rpm
-              ```
-            - **AppImage (Chạy ngay trên mọi bản Linux không cần cài đặt):**
-              Tải `ctdozlite-0.0.1-x86_64.AppImage` và chạy:
-              ```bash
-              chmod +x ctdozlite-0.0.1-x86_64.AppImage
-              ./ctdozlite-0.0.1-x86_64.AppImage
-              ```
-            - **Arch Linux / Manjaro / EndeavourOS / Gentoo / Void / Mọi distro khác (`.tar.gz`):**
-              Tải `ctdozlite-0.0.1-linux-x86_64.tar.gz` (hoặc bản `legacy-glibc2.31`), giải nén và chạy `./install.sh`.
-
-            #### 🪟 Bản cài đặt cho Windows (x64)
-            - Bộ cài đặt: `ctdozlite-0.0.1-setup-windows-x86_64.exe`
-            - Bản chạy ngay (Portable): `ctdozlite-0.0.1-portable-windows-x86_64.exe`
-
-            #### 🍎 Bản cài đặt cho macOS
-            - `ctdozlite-0.0.1-macos.dmg`
+            > **Hướng dẫn cài đặt:** [docs/CAI_DAT.md](https://github.com/ctdoteam1110/ctdozlite/blob/main/docs/CAI_DAT.md) · **Trang chủ:** https://ctdozlite.ctdo.net/
+            >
+            > Chọn đúng gói trong mục **Assets** bên dưới cho hệ điều hành của bạn (hỗ trợ Linux `.deb`/`.rpm`/`.AppImage`/`.tar.gz`, Windows `.exe`, và macOS `.dmg` cho cả **Apple Silicon M1/M2/M3/M4 `arm64`**, **Mac Intel `x86_64`** & **Universal**).

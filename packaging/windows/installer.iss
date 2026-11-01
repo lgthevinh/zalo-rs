@@ -1,8 +1,13 @@
 #define MyAppName "ctdozlite"
-#define MyAppVersion "0.0.1"
+; Sentinel default: CI injects the real version from Cargo.toml at build time via
+;   iscc /DMyAppVersion=<version> packaging/windows/installer.iss
+; A local build without that flag intentionally gets 0.0.0 instead of a stale version.
+#ifndef MyAppVersion
+#define MyAppVersion "0.0.3"
+#endif
 #define MyAppPublisher "ctdoteam1110"
 #define MyAppURL "https://github.com/ctdoteam1110/ctdozlite"
-#define MyAppExeName "zalo-rust.exe"
+#define MyAppExeName "ctdozlite.exe"
 
 [Setup]
 AppId={{8F4E2D1A-9C3B-4E7F-A6D5-1B2C3D4E5F60}
