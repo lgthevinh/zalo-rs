@@ -12,7 +12,7 @@ Electron이나 Chromium 없이 Rust(`eframe`/`egui` + `ratatui`)로 제작되어
 
 ## ⚡ 주요 특징
 
-- **초고속 Rust 성능:** 수 밀리초 단위의 빠른 실행 속도, 초경량 메모리 사용량 (~20-50MB RAM), 유휴 상태 CPU 사용률 0%에 근접.
+- **초고속 Rust 성능:** ~0.18초 초고속 콜드 스타트 (<200ms), 대기 상태 RAM 약 149.5 MB (공식 Electron 앱 1.8~1.9 GB 대비 92% 이상 절감), 1개 단일 네이티브 프로세스, 유휴 CPU 0%에 근접.
 - **완벽한 크로스 플랫폼 지원:** Windows 10/11 (MSVC & GNU), macOS (Apple Silicon arm64 & Intel x86_64 Universal), Linux (Debian, Ubuntu, Fedora Wayland/X11).
 - **듀얼 모드 지원:** 풀 피처 GUI (Atom One Dark 테마) 및 터미널 기반 TUI (`ratatui`).
 - **VoIP 음성 및 영상 통화:** 순수 Rust로 구현된 VoIP 엔진 (Annex-B H.264 디코딩, RTP/RTCP 프로토콜, Opus 오디오 리샘플링 지원).
@@ -72,11 +72,11 @@ cargo build --release
 
 | 기여자 | GitHub | 주요 역할 | 기여 규모 |
 | :--- | :--- | :--- | :---: |
-| **TIPC1110** | [@TIPC1110](https://github.com/TIPC1110) | 핵심 아키텍처, VoIP 통화 엔진, egui 프레임워크, 크로스 플랫폼 | **> 73,000+ 줄** |
-| **thanhdo1110** | [@thanhdo1110](https://github.com/thanhdo1110) | 모듈형 GUI 리팩터링, Atom One Dark 디자인 시스템 | **> 14,000+ 줄** |
-| **ngxccc** | [@ngxccc](https://github.com/ngxccc) | 엔지니어링 표준 수립, 세션 안전성 확보, 네트워크 도메인 확인 | **> 3,000+ 줄** |
-| **Thuong Tin** | [@thuongtin](https://github.com/thuongtin) | OS 로컬 시간대 패치, macOS 데이터 디렉터리 분리 | **~840+ 줄** |
-| **GrootTheDeveloper** | [@GrootTheDeveloper](https://github.com/GrootTheDeveloper) | SQLite 빠른 시작 최적화, 채팅 가상화, CJK 폰트 지연 로딩 | **~370+ 줄** |
+| **TIPC1110** | [@TIPC1110](https://github.com/TIPC1110) | 핵심 아키텍처, VoIP 통화 엔진, egui 프레임워크, 연락처 및 소셜 피드, 크로스 플랫폼 및 v0.0.6 릴리스 | **> 75,600+ 줄** |
+| **Đỗ Trung Thành (thanhdo1110)** | [@thanhdo1110](https://github.com/thanhdo1110) | 모듈형 GUI 리팩터링, Atom One Dark, MCP/REST API, 예약 메시지, GitHub API 자동 업데이트, 25+ 이슈 해결 및 v0.0.5 / v0.0.7 릴리스 | **> 35,600+ 줄** 🏆 |
+| **Thuong Tin** | [@thuongtin](https://github.com/thuongtin) | 10개 PR: OS 타임존, 데이터 디렉터리, macOS 헬퍼, 세션 원자적 저장, 미디어 캐시, 업데이터, 메시지 모델, 메시지 고유 식별자 중복 방지 (#61), 인용 메시지 이동 (#60), macOS 알림 권한 (#59) | **> 11,500+ 줄** 🏆 |
+| **ngxccc** | [@ngxccc](https://github.com/ngxccc) | 5개 PR: 엔지니어링 표준 수립, 세션 안전성 확보, 네트워크 도메인 확인 | **> 3,400+ 줄** |
+| **GrootTheDeveloper** | [@GrootTheDeveloper](https://github.com/GrootTheDeveloper) | 8개 PR: SQLite 빠른 시작 최적화, 그룹/클라우드 기록 동기화(#45), 워커 폴 타이머(#46), 채팅 가상화, CJK 폰트 지연 로딩 | **~950+ 줄** |
 
 > *참고: 버그 제보, 기능 제안, PR을 포함한 모든 기여자의 전체 명단은 [기여자 명예의 전당](https://ctdozlite.ctdo.net/contributors.html)에서 확인하실 수 있습니다.*
 

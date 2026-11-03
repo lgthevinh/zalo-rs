@@ -12,7 +12,7 @@ ElectronやChromiumを使用せず、Rust（`eframe`/`egui` + `ratatui`）を用
 
 ## ⚡ 主な特徴
 
-- **純Rustによる圧倒的な性能:** ミリ秒単位での高速起動、極めて軽量なメモリ消費（RAM ~20〜50MB）、アイドル時のCPU使用率はほぼ0%。
+- **純Rustによる圧倒的な性能:** 約0.18秒の超高速コールドスタート (<200ms)、待機時RAM約149.5 MB（公式Electron版の1.8〜1.9 GBに比べ92%以上削減）、単一ネイティブプロセス、アイドル時CPU使用率ほぼ0%。
 - **クロスプラットフォーム対応:** Windows 10/11（MSVCおよびGNU）、macOS（Apple Silicon arm64およびIntel x86_64ユニバーサル）、Linux（Debian、Ubuntu、Fedora Wayland/X11）ネイティブ対応。
 - **デュアルモード搭載:** フル機能GUI（Atom One Darkテーマ）およびターミナルベースTUI（`ratatui`）。
 - **VoIP音声・ビデオ通話:** Annex-B H.264デコード、RTP/RTCPプロトコル、Opusオーディオリサンプリングをサポートする純Rust製VoIPエンジン。
@@ -72,11 +72,11 @@ cargo build --release
 
 | 貢献者 | GitHub | 主な担当領域 | コントリビューション規模 |
 | :--- | :--- | :--- | :---: |
-| **TIPC1110** | [@TIPC1110](https://github.com/TIPC1110) | コアアーキテクチャ、VoIP通話エンジン、eguiフレームワーク、マルチOS対応 | **> 73,000+ 行** |
-| **thanhdo1110** | [@thanhdo1110](https://github.com/thanhdo1110) | モジュラーGUIリファクタリング、Atom One Darkデザインシステム | **> 14,000+ 行** |
-| **ngxccc** | [@ngxccc](https://github.com/ngxccc) | エンジニアリング基準策定、セッション安全性向上、ネットワークドメイン解決 | **> 3,000+ 行** |
-| **Thuong Tin** | [@thuongtin](https://github.com/thuongtin) | OSローカルタイムゾーン修正、macOSデータディレクトリ分離 | **~840+ 行** |
-| **GrootTheDeveloper** | [@GrootTheDeveloper](https://github.com/GrootTheDeveloper) | SQLite高速起動最適化、チャット描画仮想化、CJKフォント遅延読み込み | **~370+ 行** |
+| **TIPC1110** | [@TIPC1110](https://github.com/TIPC1110) | コアアーキテクチャ、VoIP通話エンジン、eguiフレームワーク、連絡先＆ソーシャルフィード、マルチOS対応、v0.0.6リリース | **> 75,600+ 行** |
+| **Đỗ Trung Thành (thanhdo1110)** | [@thanhdo1110](https://github.com/thanhdo1110) | モジュラーGUIリファクタリング、Atom One Dark、MCP/REST API、予約送信、GitHub API自動更新、25件以上のIssue修正とv0.0.5 / v0.0.7リリース | **> 35,600+ 行** 🏆 |
+| **Thuong Tin** | [@thuongtin](https://github.com/thuongtin) | 10件のPR: OSタイムゾーン、データディレクトリ、macOSヘルパー、セッションアトミック保存、メディアキャッシュ、アップデータ、メッセージモデル、メッセージ識別子重複排除 (#61)、引用元ジャンプ (#60)、macOS通知権限 (#59) | **> 11,500+ 行** 🏆 |
+| **ngxccc** | [@ngxccc](https://github.com/ngxccc) | 5件のPR: エンジニアリング基準策定、セッション安全性向上、ネットワークドメイン解決 | **> 3,400+ 行** |
+| **GrootTheDeveloper** | [@GrootTheDeveloper](https://github.com/GrootTheDeveloper) | 8件のPR: SQLite高速起動最適化、履歴同期再開(#45)、ワーカーポーリング(#46)、チャット描画仮想化、CJKフォント遅延読み込み | **~950+ 行** |
 
 > *注: バグ報告、機能提案、プルリクエストを含むすべての貢献者の名簿は[貢献者一覧ウォール](https://ctdozlite.ctdo.net/contributors.html)で公開されています。*
 

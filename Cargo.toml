@@ -1,6 +1,6 @@
 [package]
 name = "ctdozlite"
-version = "0.0.3"
+version = "0.0.7"
 edition = "2021"
 authors = ["TIPC1110 <tienichpc1110@gmail.com>"]
 description = "Lightweight, high-performance native Zalo PC client written in Rust (zero Node.js, zero Electron)"
@@ -19,7 +19,7 @@ base64 = "0.22"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["cookies", "json", "rustls-tls"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util", "sync"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util", "sync", "process"] }
 tokio-tungstenite = { version = "0.24", default-features = false, features = ["connect", "handshake", "rustls-tls-webpki-roots"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 aes-gcm = "0.10"
@@ -28,7 +28,7 @@ generic-array = "0.14"
 anyhow = "1"
 qrcode = { version = "0.14.1", default-features = false }
 eframe = { version = "0.29", default-features = false, features = ["default_fonts", "glow"] }
-image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif"] }
 ratatui = "0.29"
 crossterm = "0.28"
 rusqlite = { version = "0.32", features = ["bundled"] }
@@ -82,4 +82,7 @@ assets = [
 ]
 
 [profile.release]
-strip = true
+# Preserve PE debug/symbol metadata on Windows MSVC builds so unsigned binaries and
+# Inno Setup installers do not trigger Microsoft Defender's stripped-PE ML heuristics (#58).
+# Linux release jobs run `strip` explicitly in CI.
+strip = "none"

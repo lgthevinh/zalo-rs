@@ -7,6 +7,16 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (optional; must match Cargo.toml when provided)"
+        required: false
+        type: string
+      publish:
+        description: "Publish GitHub Release from this manual run"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -22,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      tag_name: ${{ steps.version.outputs.tag_name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,12 +40,24 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Resolve version and validate release tag
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
           version=$(cargo metadata --locked --no-deps --format-version 1 \
             | jq -r '.packages[] | select(.name == "ctdozlite") | .version')
           test -n "$version"
+
+          if [[ -n "${INPUT_VERSION:-}" ]]; then
+            clean_input="${INPUT_VERSION#v}"
+            if [[ "$clean_input" != "$version" ]]; then
+              echo "::error::workflow_dispatch version '$INPUT_VERSION' does not match Cargo.toml version '$version'"
+              exit 1
+            fi
+          fi
+
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag_name=v$version" >> "$GITHUB_OUTPUT"
 
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             tag_version="${GITHUB_REF_NAME#v}"
@@ -49,11 +72,31 @@ jobs:
             fi
           fi
 
+  # Fast PR and push test suite without building all 9 OS release installers
+  test:
+    name: Cargo Test Suite (Linux x86_64)
+    needs: prepare
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake pkg-config \
+            libasound2-dev libxcb-render0-dev libxcb-shape0-dev \
+            libxcb-xfixes0-dev libxkbcommon-dev libssl-dev \
+            libgtk-3-dev
+      - name: Run test suite
+        run: cargo test --locked
+
   # 1. Universal Linux packages built on Ubuntu 22.04 LTS (glibc 2.35, statically linked libopus + sqlite3 + rustls)
   # Produces: .deb (Debian/Ubuntu/Mint/Kali/Pop!_OS), .rpm (Fedora/RHEL/Rocky/Alma/openSUSE), .AppImage (all distros), .tar.gz (Arch/Void/Gentoo/any distro)
   linux-packages:
     name: Linux Multi-Format (.deb / .rpm / .AppImage / .tar.gz)
     needs: prepare
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full-package')
     runs-on: ubuntu-22.04
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
@@ -171,6 +214,7 @@ jobs:
   linux-legacy-glibc231:
     name: Linux Legacy glibc 2.31 (Debian 11 / Ubuntu 20.04+)
     needs: prepare
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full-package')
     runs-on: ubuntu-22.04
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
@@ -231,6 +275,7 @@ jobs:
   windows-exe:
     name: Windows (MSVC x86_64 + .exe)
     needs: prepare
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full-package')
     runs-on: windows-latest
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
@@ -246,16 +291,20 @@ jobs:
           cargo build --release --locked --bin ctdozlite
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item target\release\ctdozlite.exe "dist\ctdozlite-$($env:VERSION)-portable-windows-x86_64.exe"
+          Compress-Archive -Path "dist\ctdozlite-$($env:VERSION)-portable-windows-x86_64.exe","README.md","LICENSE-MIT","LICENSE-APACHE" -DestinationPath "dist\ctdozlite-$($env:VERSION)-portable-windows-x86_64.zip" -Force
           iscc "/DMyAppVersion=$($env:VERSION)" packaging\windows\installer.iss
           Move-Item dist\ctdozlite-setup-windows-x86_64.exe "dist\ctdozlite-$($env:VERSION)-setup-windows-x86_64.exe" -Force
       - uses: actions/upload-artifact@v4
         with:
           name: ctdozlite-windows-exe
-          path: dist/*.exe
+          path: |
+            dist/*.exe
+            dist/*.zip
 
   macos-dmg:
     name: macOS (Apple Silicon arm64 + Intel x86_64 + Universal .dmg)
     needs: prepare
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full-package')
     runs-on: macos-latest
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
@@ -328,6 +377,15 @@ jobs:
             mkdir -p "$stage_dir/ctdozlite.app/Contents/Resources"
             cp "$bin_path" "$stage_dir/ctdozlite.app/Contents/MacOS/ctdozlite"
             chmod +x "$stage_dir/ctdozlite.app/Contents/MacOS/ctdozlite"
+            case "$bin_path" in
+              target/aarch64-*) swift_targets="arm64-apple-macosx11.0" ;;
+              target/x86_64-*) swift_targets="x86_64-apple-macosx11.0" ;;
+              *) swift_targets="arm64-apple-macosx11.0,x86_64-apple-macosx11.0" ;;
+            esac
+            # Public builds deliberately omit externally licensed codec JS/WASM.
+            env -u HISTORY_CODEC_ASSETS SWIFT_TARGETS="$swift_targets" bash native/macos/build-native-helpers.sh "$stage_dir/ctdozlite.app"
+            helper_arches="$(lipo -archs "$bin_path" | xargs | tr ' ' ',')"
+            python3 packaging/macos/validate-native-bundle.py "$stage_dir/ctdozlite.app" --arches "$helper_arches"
             cp packaging/macos/Info.plist "$stage_dir/ctdozlite.app/Contents/Info.plist"
             plutil -replace CFBundleShortVersionString -string "$VER" "$stage_dir/ctdozlite.app/Contents/Info.plist"
             printf 'APPL????' > "$stage_dir/ctdozlite.app/Contents/PkgInfo"
@@ -335,7 +393,9 @@ jobs:
               cp build_icon/AppIcon.icns "$stage_dir/ctdozlite.app/Contents/Resources/AppIcon.icns"
             fi
             xattr -cr "$stage_dir/ctdozlite.app" || true
+            codesign --force --sign - "$stage_dir/ctdozlite.app/Contents/Helpers/DailyNotifier.app"
             codesign --force --deep --sign - "$stage_dir/ctdozlite.app"
+            codesign --verify --deep --strict "$stage_dir/ctdozlite.app"
             ln -s /Applications "$stage_dir/Applications"
 
             for attempt in 1 2 3 4 5; do
@@ -353,6 +413,7 @@ jobs:
           package_dmg "target/aarch64-apple-darwin/release/ctdozlite" "dist/ctdozlite-${VER}-macos-arm64.dmg" "ctdozlite (Apple Silicon)"
           package_dmg "target/x86_64-apple-darwin/release/ctdozlite" "dist/ctdozlite-${VER}-macos-x86_64.dmg" "ctdozlite (Intel)"
           package_dmg "target/universal-apple-darwin/release/ctdozlite" "dist/ctdozlite-${VER}-macos.dmg" "ctdozlite"
+          python3 tests/native_packaging.py
           ls -lh dist/*.dmg
       - uses: actions/upload-artifact@v4
         with:
@@ -361,12 +422,13 @@ jobs:
   release:
     name: Publish GitHub Release
     needs: [prepare, linux-packages, linux-legacy-glibc231, windows-exe, macos-dmg]
-    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.prepare.result == 'success' && needs.linux-packages.result == 'success' && needs.linux-legacy-glibc231.result == 'success' && needs.windows-exe.result == 'success' && needs.macos-dmg.result == 'success'
+    if: always() && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish == true)) && needs.prepare.result == 'success' && needs.linux-packages.result == 'success' && needs.linux-legacy-glibc231.result == 'success' && needs.windows-exe.result == 'success' && needs.macos-dmg.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
+      TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -374,26 +436,70 @@ jobs:
           merge-multiple: true
       - name: Generate SHA256SUMS.txt & latest.json update manifest
         run: |
+          set -euo pipefail
           cd release_assets
           sha256sum * > SHA256SUMS.txt
-          VER="${GITHUB_REF_NAME#v}"
-          cat > latest.json << EOF
-          {
-            "version": "${VER}",
-            "tag_name": "${GITHUB_REF_NAME}",
-            "repository": "https://github.com/ctdoteam1110/ctdozlite"
+          VER="${VERSION}"
+          TAG="${TAG_NAME}"
+          python3 - << 'PY'
+          import datetime
+          import json
+          import os
+          from pathlib import Path
+
+          ver = os.environ["VERSION"]
+          tag = os.environ["TAG_NAME"]
+          repo = "https://github.com/ctdoteam1110/ctdozlite"
+          assets = []
+          for line in Path("SHA256SUMS.txt").read_text().splitlines():
+              parts = line.strip().split(None, 1)
+              if len(parts) != 2:
+                  continue
+              sha256_hex, name = parts[0], parts[1].lstrip("*")
+              p = Path(name)
+              if not p.is_file():
+                  continue
+              assets.append({
+                  "name": name,
+                  "sha256": sha256_hex,
+                  "size": p.stat().st_size,
+                  "browser_download_url": f"{repo}/releases/download/{tag}/{name}",
+              })
+          manifest = {
+              "schema_version": 1,
+              "version": ver,
+              "tag_name": tag,
+              "published_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "repository": repo,
+              "release_url": f"{repo}/releases/tag/{tag}",
+              "assets": assets,
           }
-          EOF
+          Path("latest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          PY
           cat SHA256SUMS.txt
-      # Install instructions live in docs/CAI_DAT.md. The release body only links to
-      # them; the PR list, contributors and Full Changelog are generated by GitHub.
+          cat latest.json
+      # Install instructions live in docs/CAI_DAT.md. The release body includes
+      # concise Vietnamese highlights so the in-app GitHub Releases API updater
+      # renders exact bug fixes and feature updates directly inside ctdozlite.
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: ctdozlite ${{ github.ref_name }}
+          tag_name: ${{ needs.prepare.outputs.tag_name }}
+          name: ctdozlite ${{ needs.prepare.outputs.tag_name }} — Sửa lỗi gõ tiếng Việt Telex macOS (#71), Xem ảnh trực tiếp (#72), Tự động đồng bộ SĐT (#73) & Tải file giữ nguyên tên gốc (#74)
           files: release_assets/*
           generate_release_notes: true
           body: |
-            > **Hướng dẫn cài đặt:** [docs/CAI_DAT.md](https://github.com/ctdoteam1110/ctdozlite/blob/main/docs/CAI_DAT.md) · **Trang chủ:** https://ctdozlite.ctdo.net/
+            > **Hướng dẫn cài đặt:** [docs/CAI_DAT.md](https://github.com/ctdoteam1110/ctdozlite/blob/main/docs/CAI_DAT.md) · **Tính năng & giới hạn:** [docs/TINH_NANG.md](https://github.com/ctdoteam1110/ctdozlite/blob/main/docs/TINH_NANG.md) · **Trang chủ:** https://ctdozlite.ctdo.net/
             >
             > Chọn đúng gói trong mục **Assets** bên dưới cho hệ điều hành của bạn (hỗ trợ Linux `.deb`/`.rpm`/`.AppImage`/`.tar.gz`, Windows `.exe`, và macOS `.dmg` cho cả **Apple Silicon M1/M2/M3/M4 `arm64`**, **Mac Intel `x86_64`** & **Universal**).
+
+            ### 🐛 Đã sửa lỗi trong v0.0.7 (Bug Fixes)
+            - **Sửa lỗi gõ tiếng Việt Telex trên macOS bị nuốt dấu cách & lỗi phím Enter ([#71](https://github.com/ctdoteam1110/ctdozlite/issues/71)):** Bảo toàn ký tự khoảng trắng (`" "`) trong sự kiện `Event::Ime(ImeEvent::Commit(" "))` của macOS NSTextInputClient/egui trước đây bị lọc nhầm bởi `.is_empty()`, đồng thời gắn cờ `ime_preedit_active` để phím `Enter` chỉ xác nhận từ đang gõ dấu thay vì gửi tin nhắn sớm.
+            - **Hiển thị trực tiếp ảnh trong hội thoại & Trình xem ảnh tích hợp ([#72](https://github.com/ctdoteam1110/ctdozlite/issues/72)):** Phóng to khung hiển thị ảnh trực tiếp trong bong bóng chat lên tối đa `340x320`, tự động ẩn chuỗi URL CDN thô (`https://...zdn.vn/...`) khi đã có ảnh đính kèm, và chuyển toàn bộ thao tác bấm vào ảnh hoặc liên kết ảnh sang mở `ImageViewerModal` ngay trong ứng dụng (hỗ trợ phóng to/thu nhỏ, sao chép ảnh vào clipboard và lưu về máy).
+            - **Tự động kích hoạt đồng bộ tin nhắn từ điện thoại ngay khi đăng nhập ([#73](https://github.com/ctdoteam1110/ctdozlite/issues/73)):** Tự động khởi chạy đồng bộ lịch sử đám mây kèm gửi gói yêu cầu WebSocket `cmd 12000` & `cmd 12888` tới điện thoại ngay sau khi đăng nhập QR/Mật khẩu hoặc khôi phục phiên mà không cần bấm nút thủ công.
+            - **Tải tệp đính kèm trực tiếp & giữ nguyên tên file gốc của người gửi ([#74](https://github.com/ctdoteam1110/ctdozlite/issues/74)):** Sửa thứ tự trích xuất tên tệp trong `parse_chat_message` (`src/chat.rs`) ưu tiên trường `title` trước `href` để không bao giờ lấy nhầm đường dẫn endpoint `renewMedia.doc` của Zalo CDN, đồng thời tải trực tiếp tệp về thư mục `Downloads` với đúng tên gốc của người gửi thay vì mở trình duyệt ngoài.
+
+            ### ✨ Tính năng nổi bật từ v0.0.6 & v0.0.5 (Recent Highlights)
+            - **Trang Danh bạ chuẩn Zalo PC & Gói nhãn dán động "Mèo Ami Bụng Bự (GIF)":** Hợp nhất mục Danh bạ với 4 phân mục, gom nhóm `A–Z`, hỗ trợ hiển thị văn bản định dạng giàu (Markdown & Zalo RTF `textProperties`), đồng bộ tắt thông báo hai chiều ([#67](https://github.com/ctdoteam1110/ctdozlite/issues/67)) và đa tài khoản / Proxy ([#64](https://github.com/ctdoteam1110/ctdozlite/issues/64)).
+            - **Tự động thông báo & cập nhật trực tiếp qua GitHub Releases API:** Tự động kiểm tra bản mới qua `https://api.github.com/repos/ctdoteam1110/ctdozlite/releases/latest` khi mở ứng dụng và định kỳ mỗi 30 phút, gửi thông báo hệ điều hành, hiển thị thanh banner cùng hộp thoại chi tiết những gì đã sửa/cập nhật và nút **Cập nhật tự động ngay** (xác thực `SHA256SUMS.txt`).
+            - **Hẹn giờ gửi tin nhắn ([#38](https://github.com/ctdoteam1110/ctdozlite/issues/38)), REST API / MCP Server / Auto-Reply ([#35](https://github.com/ctdoteam1110/ctdozlite/issues/35)), Sửa lỗi trùng tên Zalo ([#63](https://github.com/ctdoteam1110/ctdozlite/issues/63)) & Failover đa máy chủ ([#27](https://github.com/ctdoteam1110/ctdozlite/issues/27)).**

@@ -12,7 +12,7 @@ A pure Rust Zalo Desktop client (`eframe`/`egui` + `ratatui`) communicating dire
 
 ## ⚡ Highlights
 
-- **Pure Rust Performance:** Startup in milliseconds, minimal RAM footprint (~20-50MB), near-zero idle CPU usage.
+- **Pure Rust Performance:** Cold startup in ~0.18s (<200ms), idle Working Set RAM ~149.5 MB (vs ~1.8-1.9 GB on official Electron client), 1 single native process, near-zero idle CPU.
 - **Cross-Platform:** Native builds for Windows 10/11 (MSVC & GNU), macOS (Apple Silicon arm64 & Intel x86_64), and Linux (Debian, Ubuntu, Fedora Wayland/X11).
 - **Dual Mode:** Full-featured GUI (Atom One Dark theme) and terminal-based TUI (`ratatui`).
 - **VoIP Audio & Video Calls:** 100% Rust VoIP engine supporting Annex-B H.264 video decoding, RTP/RTCP protocols, and Opus audio resampling.
@@ -72,11 +72,11 @@ Core contributors with representative code commits in the repository:
 
 | Contributor | GitHub | Key Role | Code Volume |
 | :--- | :--- | :--- | :---: |
-| **TIPC1110** | [@TIPC1110](https://github.com/TIPC1110) | Core architecture, VoIP call engine, egui framework, cross-platform | **> 73,000+ lines** |
-| **thanhdo1110** | [@thanhdo1110](https://github.com/thanhdo1110) | Modular GUI refactoring, Atom One Dark design system | **> 14,000+ lines** |
-| **ngxccc** | [@ngxccc](https://github.com/ngxccc) | Engineering standards, session safety, domain resolution | **> 3,000+ lines** |
-| **Thuong Tin** | [@thuongtin](https://github.com/thuongtin) | OS local timezone patches, customizable macOS data directory | **~840+ lines** |
-| **GrootTheDeveloper** | [@GrootTheDeveloper](https://github.com/GrootTheDeveloper) | SQLite startup speedup, chat virtualization, CJK font lazy loading | **~370+ lines** |
+| **TIPC1110** | [@TIPC1110](https://github.com/TIPC1110) | Core architecture, VoIP call engine, egui framework, Contacts & Social Feed, cross-platform & v0.0.6 release | **> 75,600+ lines** |
+| **Đỗ Trung Thành (thanhdo1110)** | [@thanhdo1110](https://github.com/thanhdo1110) | Modular GUI refactoring, Atom One Dark, MCP/REST API, Message Scheduler, GitHub API Auto-Updater, 25+ Issue fixes & v0.0.5 / v0.0.7 release | **> 35,600+ lines** 🏆 |
+| **Thuong Tin** | [@thuongtin](https://github.com/thuongtin) | 10 PRs: OS timezone, customizable data-dir, macOS helpers, session atomic, media cache, updater, message state, exact message identity (#61), quote navigation (#60), macOS notification permissions (#59) | **> 11,500+ lines** 🏆 |
+| **ngxccc** | [@ngxccc](https://github.com/ngxccc) | 5 PRs: Engineering standards, session safety, domain resolution | **> 3,400+ lines** |
+| **GrootTheDeveloper** | [@GrootTheDeveloper](https://github.com/GrootTheDeveloper) | 8 PRs: SQLite startup speedup, resumable history sync (#45), worker poll timer (#46), chat virtualization, CJK font lazy loading | **~950+ lines** |
 
 > *Note: The complete hall of fame honoring all contributors (bug reports, feature requests, pull requests) is published at [Contributors Wall](https://ctdozlite.ctdo.net/contributors.html).*
 

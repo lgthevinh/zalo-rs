@@ -37,26 +37,26 @@ impl ThemePalette {
         // Official Atom One Dark (`one-dark-ui` + `one-dark-syntax`) color system
         Self {
             is_dark: true,
-            bg_app: Color32::from_rgb(24, 26, 31),          // #181A1F Activity Bar & Title Bar
-            bg_sidebar: Color32::from_rgb(33, 37, 43),      // #21252B Tree-View / Sidebar / Header
-            bg_chat_canvas: Color32::from_rgb(40, 44, 52),  // #282C34 Atom One Dark Editor Canvas
-            bg_elevated: Color32::from_rgb(44, 49, 58),     // #2C313A Elevated Card / Modal / Popover
-            bg_hover: Color32::from_rgb(50, 56, 66),        // #323842 List Hover Surface
-            bg_selected: Color32::from_rgb(58, 63, 75),     // #3A3F4B Active Selection Row
-            bg_input: Color32::from_rgb(29, 31, 35),        // #1D1F23 Input / Search Well
-            border: Color32::from_rgb(52, 57, 66),          // #343942 Subtle Panel Divider
+            bg_app: Color32::from_rgb(24, 26, 31), // #181A1F Activity Bar & Title Bar
+            bg_sidebar: Color32::from_rgb(33, 37, 43), // #21252B Tree-View / Sidebar / Header
+            bg_chat_canvas: Color32::from_rgb(40, 44, 52), // #282C34 Atom One Dark Editor Canvas
+            bg_elevated: Color32::from_rgb(44, 49, 58), // #2C313A Elevated Card / Modal / Popover
+            bg_hover: Color32::from_rgb(50, 56, 66), // #323842 List Hover Surface
+            bg_selected: Color32::from_rgb(58, 63, 75), // #3A3F4B Active Selection Row
+            bg_input: Color32::from_rgb(29, 31, 35), // #1D1F23 Input / Search Well
+            border: Color32::from_rgb(52, 57, 66), // #343942 Subtle Panel Divider
             text_primary: Color32::from_rgb(215, 218, 224), // #D7DAE0 Bright Foreground
             text_secondary: Color32::from_rgb(171, 178, 191), // #ABB2BF Atom @mono-1
-            text_muted: Color32::from_rgb(118, 126, 142),   // #767E8E Atom @mono-3 (readable muted)
-            primary: Color32::from_rgb(82, 139, 255),       // #528BFF Atom UI Accent Blue
+            text_muted: Color32::from_rgb(118, 126, 142), // #767E8E Atom @mono-3 (readable muted)
+            primary: Color32::from_rgb(82, 139, 255), // #528BFF Atom UI Accent Blue
             primary_hover: Color32::from_rgb(97, 175, 239), // #61AFEF Atom @hue-2 Cyan-Blue
             accent_online: Color32::from_rgb(152, 195, 121), // #98C379 Atom @hue-4 Green
-            danger: Color32::from_rgb(224, 108, 117),       // #E06C75 Atom @hue-5 Coral Red
-            warning: Color32::from_rgb(229, 192, 123),      // #E5C07B Atom @hue-62 Warm Gold
-            bubble_out_bg: Color32::from_rgb(37, 55, 77),   // #25374D Zalo Dark Slate-Navy Outgoing Bubble
+            danger: Color32::from_rgb(224, 108, 117), // #E06C75 Atom @hue-5 Coral Red
+            warning: Color32::from_rgb(229, 192, 123), // #E5C07B Atom @hue-62 Warm Gold
+            bubble_out_bg: Color32::from_rgb(37, 55, 77), // #25374D Zalo Dark Slate-Navy Outgoing Bubble
             bubble_out_text: Color32::from_rgb(235, 240, 246), // #EBF0F6
             bubble_out_meta: Color32::from_rgb(154, 171, 192), // #9AABC0
-            bubble_in_bg: Color32::from_rgb(50, 56, 66),    // #323842 Atom Elevated Incoming Bubble
+            bubble_in_bg: Color32::from_rgb(50, 56, 66),  // #323842 Atom Elevated Incoming Bubble
             bubble_in_border: Color32::from_rgb(62, 68, 81), // #3E4451 Atom Gutter Border
             bubble_in_text: Color32::from_rgb(215, 218, 224), // #D7DAE0
             bubble_in_meta: Color32::from_rgb(142, 150, 165), // #8E96A5
@@ -66,22 +66,22 @@ impl ThemePalette {
     pub(super) fn light() -> Self {
         Self {
             is_dark: false,
-            bg_app: Color32::from_rgb(255, 255, 255),      // #FFFFFF
-            bg_sidebar: Color32::from_rgb(255, 255, 255),  // #FFFFFF
+            bg_app: Color32::from_rgb(255, 255, 255), // #FFFFFF
+            bg_sidebar: Color32::from_rgb(255, 255, 255), // #FFFFFF
             bg_chat_canvas: Color32::from_rgb(235, 240, 247), // Authentic Zalo PC cool blue-gray canvas
-            bg_elevated: Color32::from_rgb(255, 255, 255), // #FFFFFF
-            bg_hover: Color32::from_rgb(241, 245, 249),    // #F1F5F9
-            bg_selected: Color32::from_rgb(229, 241, 255), // #E5F1FF Zalo active row
-            bg_input: Color32::from_rgb(248, 250, 252),    // #F8FAFC
-            border: Color32::from_rgb(226, 232, 240),      // #E2E8F0
-            text_primary: Color32::from_rgb(15, 23, 42),   // #0F172A (16.1:1 contrast)
-            text_secondary: Color32::from_rgb(71, 85, 105), // #475569 (7.2:1 contrast)
-            text_muted: Color32::from_rgb(100, 116, 139),  // #64748B (4.6:1 contrast)
-            primary: Color32::from_rgb(0, 104, 255),       // #0068FF Zalo Blue
-            primary_hover: Color32::from_rgb(37, 99, 235), // #2563EB
-            accent_online: Color32::from_rgb(5, 150, 105), // #059669 Emerald
-            danger: Color32::from_rgb(220, 38, 38),        // #DC2626
-            warning: Color32::from_rgb(217, 119, 6),       // #D97706
+            bg_elevated: Color32::from_rgb(255, 255, 255),    // #FFFFFF
+            bg_hover: Color32::from_rgb(241, 245, 249),       // #F1F5F9
+            bg_selected: Color32::from_rgb(229, 241, 255),    // #E5F1FF Zalo active row
+            bg_input: Color32::from_rgb(248, 250, 252),       // #F8FAFC
+            border: Color32::from_rgb(226, 232, 240),         // #E2E8F0
+            text_primary: Color32::from_rgb(15, 23, 42),      // #0F172A (16.1:1 contrast)
+            text_secondary: Color32::from_rgb(71, 85, 105),   // #475569 (7.2:1 contrast)
+            text_muted: Color32::from_rgb(100, 116, 139),     // #64748B (4.6:1 contrast)
+            primary: Color32::from_rgb(0, 104, 255),          // #0068FF Zalo Blue
+            primary_hover: Color32::from_rgb(37, 99, 235),    // #2563EB
+            accent_online: Color32::from_rgb(5, 150, 105),    // #059669 Emerald
+            danger: Color32::from_rgb(220, 38, 38),           // #DC2626
+            warning: Color32::from_rgb(217, 119, 6),          // #D97706
             bubble_out_bg: Color32::from_rgb(229, 239, 255), // Zalo Desktop Light Outgoing (#E5EFFF)
             bubble_out_text: Color32::from_rgb(15, 23, 42),  // Crisp dark text on light blue (14:1)
             bubble_out_meta: Color32::from_rgb(71, 92, 122),
@@ -105,7 +105,9 @@ impl ThemePalette {
         visuals.extreme_bg_color = self.bg_input;
         visuals.faint_bg_color = self.bg_hover;
         visuals.override_text_color = Some(self.text_primary);
-        visuals.selection.bg_fill = self.primary.linear_multiply(if self.is_dark { 0.45 } else { 0.22 });
+        visuals.selection.bg_fill =
+            self.primary
+                .linear_multiply(if self.is_dark { 0.45 } else { 0.22 });
         visuals.selection.stroke = Stroke::new(1.5_f32, self.primary);
 
         let r = Rounding::same(8.0);
@@ -139,6 +141,118 @@ impl ThemePalette {
         style.visuals = visuals;
         ctx.set_style(style);
     }
+
+    /// Load either the built-in dark/light palette or apply custom overrides from `theme.json` (#7).
+    pub(super) fn load_with_custom_override(dark_mode: bool) -> Self {
+        let mut base = if dark_mode {
+            Self::dark()
+        } else {
+            Self::light()
+        };
+        if let Ok(raw) = std::fs::read_to_string("theme.json") {
+            base.apply_json_overrides(&raw);
+        }
+        base
+    }
+
+    /// Apply any `#RRGGBB` color overrides from a JSON string (`theme.json`) (#7).
+    pub(super) fn apply_json_overrides(&mut self, json_text: &str) {
+        let Ok(val) = serde_json::from_str::<serde_json::Value>(json_text) else {
+            return;
+        };
+        let sub = if self.is_dark {
+            val.get("dark").unwrap_or(&val)
+        } else {
+            val.get("light").unwrap_or(&val)
+        };
+        for (key, target) in [
+            ("bg_app", &mut self.bg_app),
+            ("bg_sidebar", &mut self.bg_sidebar),
+            ("bg_chat_canvas", &mut self.bg_chat_canvas),
+            ("bg_elevated", &mut self.bg_elevated),
+            ("bg_hover", &mut self.bg_hover),
+            ("bg_selected", &mut self.bg_selected),
+            ("bg_input", &mut self.bg_input),
+            ("border", &mut self.border),
+            ("text_primary", &mut self.text_primary),
+            ("text_secondary", &mut self.text_secondary),
+            ("text_muted", &mut self.text_muted),
+            ("primary", &mut self.primary),
+            ("primary_hover", &mut self.primary_hover),
+            ("accent_online", &mut self.accent_online),
+            ("danger", &mut self.danger),
+            ("warning", &mut self.warning),
+            ("bubble_out_bg", &mut self.bubble_out_bg),
+            ("bubble_out_text", &mut self.bubble_out_text),
+            ("bubble_out_meta", &mut self.bubble_out_meta),
+            ("bubble_in_bg", &mut self.bubble_in_bg),
+            ("bubble_in_border", &mut self.bubble_in_border),
+            ("bubble_in_text", &mut self.bubble_in_text),
+            ("bubble_in_meta", &mut self.bubble_in_meta),
+        ] {
+            if let Some(hex) = sub.get(key).and_then(|v| v.as_str()) {
+                if let Some(c) = parse_hex_color(hex) {
+                    *target = c;
+                }
+            }
+        }
+    }
+
+    /// Export a sample `theme.json` containing both `dark` and `light` token maps (#7).
+    pub(super) fn export_template(path: &str) -> std::io::Result<()> {
+        let d = Self::dark();
+        let l = Self::light();
+        let to_map = |p: &Self| {
+            serde_json::json!({
+                "bg_app": format_hex_color(p.bg_app),
+                "bg_sidebar": format_hex_color(p.bg_sidebar),
+                "bg_chat_canvas": format_hex_color(p.bg_chat_canvas),
+                "bg_elevated": format_hex_color(p.bg_elevated),
+                "bg_hover": format_hex_color(p.bg_hover),
+                "bg_selected": format_hex_color(p.bg_selected),
+                "bg_input": format_hex_color(p.bg_input),
+                "border": format_hex_color(p.border),
+                "text_primary": format_hex_color(p.text_primary),
+                "text_secondary": format_hex_color(p.text_secondary),
+                "text_muted": format_hex_color(p.text_muted),
+                "primary": format_hex_color(p.primary),
+                "primary_hover": format_hex_color(p.primary_hover),
+                "accent_online": format_hex_color(p.accent_online),
+                "danger": format_hex_color(p.danger),
+                "warning": format_hex_color(p.warning),
+                "bubble_out_bg": format_hex_color(p.bubble_out_bg),
+                "bubble_out_text": format_hex_color(p.bubble_out_text),
+                "bubble_out_meta": format_hex_color(p.bubble_out_meta),
+                "bubble_in_bg": format_hex_color(p.bubble_in_bg),
+                "bubble_in_border": format_hex_color(p.bubble_in_border),
+                "bubble_in_text": format_hex_color(p.bubble_in_text),
+                "bubble_in_meta": format_hex_color(p.bubble_in_meta),
+            })
+        };
+        let doc = serde_json::json!({
+            "_comment": "ctdozlite custom theme file (#7). Edit hex colors (#RRGGBB) under dark/light and reload in Settings.",
+            "dark": to_map(&d),
+            "light": to_map(&l),
+        });
+        let text = serde_json::to_string_pretty(&doc).unwrap_or_default();
+        std::fs::write(path, text)
+    }
+}
+
+pub(super) fn parse_hex_color(s: &str) -> Option<Color32> {
+    let hex = s.trim().trim_start_matches('#');
+    if hex.len() == 6 {
+        let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+        let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+        let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+        Some(Color32::from_rgb(r, g, b))
+    } else {
+        None
+    }
+}
+
+pub(super) fn format_hex_color(c: Color32) -> String {
+    format!("#{:02X}{:02X}{:02X}", c.r(), c.g(), c.b())
 }
 
 // ---------------------------------------------------------------------------
@@ -147,14 +261,14 @@ impl ThemePalette {
 
 pub(super) fn avatar_color_for(name: &str, is_group: bool) -> Color32 {
     const PALETTE: &[Color32] = &[
-        Color32::from_rgb(64, 120, 192),  // Atom Blue (#4078C0)
-        Color32::from_rgb(56, 148, 160),  // Atom Cyan (#3894A0)
-        Color32::from_rgb(152, 88, 178),  // Atom Purple (#9858B2)
-        Color32::from_rgb(190, 80, 70),   // Atom Red (#BE5046)
-        Color32::from_rgb(184, 118, 62),  // Atom Orange (#B8763E)
-        Color32::from_rgb(98, 148, 72),   // Atom Green (#629448)
-        Color32::from_rgb(82, 116, 196),  // Atom Indigo
-        Color32::from_rgb(72, 138, 182),  // Atom Cerulean
+        Color32::from_rgb(64, 120, 192), // Atom Blue (#4078C0)
+        Color32::from_rgb(56, 148, 160), // Atom Cyan (#3894A0)
+        Color32::from_rgb(152, 88, 178), // Atom Purple (#9858B2)
+        Color32::from_rgb(190, 80, 70),  // Atom Red (#BE5046)
+        Color32::from_rgb(184, 118, 62), // Atom Orange (#B8763E)
+        Color32::from_rgb(98, 148, 72),  // Atom Green (#629448)
+        Color32::from_rgb(82, 116, 196), // Atom Indigo
+        Color32::from_rgb(72, 138, 182), // Atom Cerulean
     ];
     let mut hash: usize = if is_group { 3 } else { 0 };
     for b in name.bytes() {
@@ -207,11 +321,15 @@ pub(super) fn fold_vn_search(s: &str) -> String {
             let mapped = match c {
                 'à' | 'á' | 'ạ' | 'ả' | 'ã' | 'â' | 'ầ' | 'ấ' | 'ậ' | 'ẩ' | 'ẫ' | 'ă' | 'ằ'
                 | 'ắ' | 'ặ' | 'ẳ' | 'ẵ' => 'a',
-                'è' | 'é' | 'ẹ' | 'ẻ' | 'ẽ' | 'ê' | 'ề' | 'ế' | 'ệ' | 'ể' | 'ễ' => 'e',
+                'è' | 'é' | 'ẹ' | 'ẻ' | 'ẽ' | 'ê' | 'ề' | 'ế' | 'ệ' | 'ể' | 'ễ' => {
+                    'e'
+                }
                 'ì' | 'í' | 'ị' | 'ỉ' | 'ĩ' => 'i',
                 'ò' | 'ó' | 'ọ' | 'ỏ' | 'õ' | 'ô' | 'ồ' | 'ố' | 'ộ' | 'ổ' | 'ỗ' | 'ơ' | 'ờ'
                 | 'ớ' | 'ợ' | 'ở' | 'ỡ' => 'o',
-                'ù' | 'ú' | 'ụ' | 'ủ' | 'ũ' | 'ư' | 'ừ' | 'ứ' | 'ự' | 'ử' | 'ữ' => 'u',
+                'ù' | 'ú' | 'ụ' | 'ủ' | 'ũ' | 'ư' | 'ừ' | 'ứ' | 'ự' | 'ử' | 'ữ' => {
+                    'u'
+                }
                 'ỳ' | 'ý' | 'ỵ' | 'ỷ' | 'ỹ' => 'y',
                 'đ' => 'd',
                 other => other,
@@ -319,14 +437,7 @@ pub(super) fn paint_user_avatar(
 
     if !is_group || has_single_custom_photo {
         paint_single_circle_avatar(
-            painter,
-            center,
-            radius,
-            name,
-            is_group,
-            avatar_url,
-            textures,
-            loading,
+            painter, center, radius, name, is_group, avatar_url, textures, loading,
         );
         return;
     }
@@ -360,10 +471,7 @@ pub(super) fn paint_user_avatar(
             }
             total_members = comma_parts.len();
         } else {
-            let words: Vec<&str> = name
-                .split_whitespace()
-                .filter(|w| !w.is_empty())
-                .collect();
+            let words: Vec<&str> = name.split_whitespace().filter(|w| !w.is_empty()).collect();
             if words.len() >= 3 {
                 for w in words.iter().take(3) {
                     slots.push(((*w).to_string(), String::new()));
@@ -395,7 +503,11 @@ pub(super) fn paint_user_avatar(
                 sub_r,
                 m_name,
                 false,
-                if m_url.is_empty() { None } else { Some(m_url.as_str()) },
+                if m_url.is_empty() {
+                    None
+                } else {
+                    Some(m_url.as_str())
+                },
                 textures,
                 loading,
             );
@@ -404,8 +516,14 @@ pub(super) fn paint_user_avatar(
         // Zalo PC `zavatar-multi.zavatar-3`: 1 top-center (z=4), 1 bottom-left (z=3), 1 bottom-right (z=2)
         let sub_r = (radius * 0.56).max(5.5);
         let p_top = Pos2::new(center.x, center.y - radius + sub_r);
-        let p_bl = Pos2::new(center.x - radius + sub_r + 0.5, center.y + radius - sub_r - 0.5);
-        let p_br = Pos2::new(center.x + radius - sub_r - 0.5, center.y + radius - sub_r - 0.5);
+        let p_bl = Pos2::new(
+            center.x - radius + sub_r + 0.5,
+            center.y + radius - sub_r - 0.5,
+        );
+        let p_br = Pos2::new(
+            center.x + radius - sub_r - 0.5,
+            center.y + radius - sub_r - 0.5,
+        );
         for &(pos, idx) in &[(p_br, 2usize), (p_bl, 1usize), (p_top, 0usize)] {
             painter.circle_filled(pos, sub_r + 1.2, border_col);
             let (ref m_name, ref m_url) = slots[idx];
@@ -415,7 +533,11 @@ pub(super) fn paint_user_avatar(
                 sub_r,
                 m_name,
                 false,
-                if m_url.is_empty() { None } else { Some(m_url.as_str()) },
+                if m_url.is_empty() {
+                    None
+                } else {
+                    Some(m_url.as_str())
+                },
                 textures,
                 loading,
             );
@@ -451,7 +573,11 @@ pub(super) fn paint_user_avatar(
                 sub_r,
                 m_name,
                 false,
-                if m_url.is_empty() { None } else { Some(m_url.as_str()) },
+                if m_url.is_empty() {
+                    None
+                } else {
+                    Some(m_url.as_str())
+                },
                 textures,
                 loading,
             );
@@ -465,7 +591,11 @@ pub(super) fn paint_user_avatar(
                     sub_r,
                     m_name,
                     false,
-                    if m_url.is_empty() { None } else { Some(m_url.as_str()) },
+                    if m_url.is_empty() {
+                        None
+                    } else {
+                        Some(m_url.as_str())
+                    },
                     textures,
                     loading,
                 );
@@ -524,9 +654,16 @@ pub mod lucide {
     pub const CHEVRON_RIGHT: &str = "\u{e06f}";
     pub const CHEVRON_DOWN: &str = "\u{e06d}";
     pub const USER: &str = "\u{e19f}";
+    pub const NEWSPAPER: &str = "\u{e124}";
 }
 
-pub(super) fn draw_lucide_icon(painter: &egui::Painter, center: Pos2, icon: &str, size: f32, color: Color32) {
+pub(super) fn draw_lucide_icon(
+    painter: &egui::Painter,
+    center: Pos2,
+    icon: &str,
+    size: f32,
+    color: Color32,
+) {
     painter.text(
         center,
         egui::Align2::CENTER_CENTER,
@@ -564,7 +701,12 @@ pub(super) fn draw_icon_image(painter: &egui::Painter, center: Pos2, size: f32, 
     draw_lucide_icon(painter, center, lucide::IMAGE, size, color);
 }
 
-pub(super) fn draw_icon_attachment(painter: &egui::Painter, center: Pos2, size: f32, color: Color32) {
+pub(super) fn draw_icon_attachment(
+    painter: &egui::Painter,
+    center: Pos2,
+    size: f32,
+    color: Color32,
+) {
     draw_lucide_icon(painter, center, lucide::PAPERCLIP, size, color);
 }
 
@@ -583,6 +725,9 @@ pub(super) fn draw_icon_cloud(painter: &egui::Painter, center: Pos2, size: f32, 
 pub(super) fn draw_icon_settings(painter: &egui::Painter, center: Pos2, size: f32, color: Color32) {
     draw_lucide_icon(painter, center, lucide::SETTINGS, size, color);
 }
+pub(super) fn draw_icon_feed(painter: &egui::Painter, center: Pos2, size: f32, color: Color32) {
+    draw_lucide_icon(painter, center, lucide::NEWSPAPER, size, color);
+}
 
 pub(super) fn draw_icon_drawer(painter: &egui::Painter, center: Pos2, size: f32, color: Color32) {
     draw_lucide_icon(painter, center, lucide::PANEL_RIGHT, size, color);
@@ -596,7 +741,12 @@ pub(super) fn draw_icon_copy(painter: &egui::Painter, center: Pos2, size: f32, c
     draw_lucide_icon(painter, center, lucide::COPY, size, color);
 }
 
-pub(super) fn draw_icon_user_plus(painter: &egui::Painter, center: Pos2, size: f32, color: Color32) {
+pub(super) fn draw_icon_user_plus(
+    painter: &egui::Painter,
+    center: Pos2,
+    size: f32,
+    color: Color32,
+) {
     draw_lucide_icon(painter, center, lucide::USER_PLUS, size, color);
 }
 
@@ -637,7 +787,8 @@ pub fn load_app_icon() -> Option<egui::IconData> {
 pub(super) fn load_app_logo_texture(ctx: &egui::Context) -> Option<TextureHandle> {
     let img = image::load_from_memory(APP_ICON_PNG).ok()?.into_rgba8();
     let (w, h) = img.dimensions();
-    let color_img = egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], img.as_raw());
+    let color_img =
+        egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], img.as_raw());
     Some(ctx.load_texture("zalo_app_logo", color_img, TextureOptions::LINEAR))
 }
 
@@ -646,7 +797,10 @@ pub(super) fn load_default_emoji_textures(ctx: &egui::Context) -> HashMap<String
         ("like", include_bytes!("../assets/emojis/like.png")),
         ("heart", include_bytes!("../assets/emojis/heart.png")),
         ("smile", include_bytes!("../assets/emojis/smile.png")),
-        ("surprised", include_bytes!("../assets/emojis/surprised.png")),
+        (
+            "surprised",
+            include_bytes!("../assets/emojis/surprised.png"),
+        ),
         ("cry", include_bytes!("../assets/emojis/cry.png")),
         ("rage", include_bytes!("../assets/emojis/rage.png")),
     ];
@@ -655,10 +809,8 @@ pub(super) fn load_default_emoji_textures(ctx: &egui::Context) -> HashMap<String
         if let Ok(img) = image::load_from_memory(bytes) {
             let rgba = img.to_rgba8();
             let (w, h) = rgba.dimensions();
-            let color_img = egui::ColorImage::from_rgba_unmultiplied(
-                [w as usize, h as usize],
-                rgba.as_raw(),
-            );
+            let color_img =
+                egui::ColorImage::from_rgba_unmultiplied([w as usize, h as usize], rgba.as_raw());
             let tex = ctx.load_texture(
                 format!("zalo_emoji_{name}"),
                 color_img,
@@ -670,9 +822,12 @@ pub(super) fn load_default_emoji_textures(ctx: &egui::Context) -> HashMap<String
     map
 }
 
-
 /// Render an iOS/Zalo PC style rounded Toggle Switch in pure egui.
-pub(super) fn render_toggle_switch(ui: &mut egui::Ui, value: &mut bool, pal: &ThemePalette) -> egui::Response {
+pub(super) fn render_toggle_switch(
+    ui: &mut egui::Ui,
+    value: &mut bool,
+    pal: &ThemePalette,
+) -> egui::Response {
     let (rect, mut resp) = ui.allocate_exact_size(Vec2::new(38.0, 20.0), Sense::click());
     if resp.clicked() {
         *value = !*value;
@@ -703,10 +858,9 @@ pub(super) fn render_toggle_switch(ui: &mut egui::Ui, value: &mut bool, pal: &Th
     resp
 }
 
-
 static CJK_LOADED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-fn is_cjk(c: char) -> bool {
+pub(crate) fn is_cjk(c: char) -> bool {
     matches!(c as u32,
         0x1100..=0x11FF | 0x3040..=0x30FF | 0x3130..=0x318F | 0x3400..=0x4DBF
         | 0x4E00..=0x9FFF | 0xAC00..=0xD7AF | 0xF900..=0xFAFF)
@@ -787,16 +941,18 @@ fn build_fonts(ctx: &egui::Context, with_cjk: bool) {
     ];
     for path in cjk_candidates.into_iter().filter(|_| with_cjk) {
         if let Ok(font_data) = std::fs::read(path) {
-            fonts.font_data.insert(
-                "cjk_font".to_owned(),
-                egui::FontData::from_owned(font_data),
-            );
+            fonts
+                .font_data
+                .insert("cjk_font".to_owned(), egui::FontData::from_owned(font_data));
             break;
         }
     }
 
     // Fallback order: bundled sans guarantees Vietnamese coverage, CJK supplies Han/Kana/Hangul, Lucide supplies icon glyphs
-    let prop = fonts.families.entry(egui::FontFamily::Proportional).or_default();
+    let prop = fonts
+        .families
+        .entry(egui::FontFamily::Proportional)
+        .or_default();
     prop.insert(0, "bundled_sans".to_owned());
     if fonts.font_data.contains_key("vietnamese_font") {
         prop.insert(1, "vietnamese_font".to_owned());
@@ -806,7 +962,10 @@ fn build_fonts(ctx: &egui::Context, with_cjk: bool) {
     }
     prop.push("lucide_font".to_owned());
 
-    let mono = fonts.families.entry(egui::FontFamily::Monospace).or_default();
+    let mono = fonts
+        .families
+        .entry(egui::FontFamily::Monospace)
+        .or_default();
     mono.push("bundled_sans".to_owned());
     if fonts.font_data.contains_key("vietnamese_font") {
         mono.push("vietnamese_font".to_owned());

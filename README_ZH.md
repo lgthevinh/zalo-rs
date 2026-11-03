@@ -12,7 +12,7 @@
 
 ## ⚡ 核心亮点
 
-- **极致 Rust 性能:** 毫秒级极速冷启动，极低内存开销（~20-50MB RAM），待机 CPU 占用近乎为零。
+- **极致 Rust 性能:** 约0.18秒毫秒级极速冷启动 (<200ms)，待机 Working Set 内存仅约 149.5 MB（相比官方 Electron 版 1.8~1.9 GB 节省超 92% 内存），单一原生进程，待机 CPU 占用近乎为零。
 - **全平台支持:** 原生支持 Windows 10/11 (MSVC 与 GNU)、macOS (Apple Silicon arm64 与 Intel x86_64 通用二进制) 以及 Linux (Debian, Ubuntu, Fedora Wayland/X11)。
 - **双模式切换:** 全功能图形界面 GUI (Atom One Dark 经典深色主题) 以及终端控制台模式 TUI (`ratatui`)。
 - **VoIP 音视频通话:** 纯 Rust 原生实现的 VoIP 通话引擎，支持 Annex-B H.264 视频解码、RTP/RTCP 协议及 Opus 音频重采样。
@@ -72,11 +72,11 @@ cargo build --release
 
 | 贡献者 | GitHub | 核心职责 | 贡献代码量 |
 | :--- | :--- | :--- | :---: |
-| **TIPC1110** | [@TIPC1110](https://github.com/TIPC1110) | 核心协议架构、VoIP 通话引擎、egui 客户端框架、跨平台编译 | **> 73,000+ 行** |
-| **thanhdo1110** | [@thanhdo1110](https://github.com/thanhdo1110) | 模块化 GUI 重构、Atom One Dark 设计系统 | **> 14,000+ 行** |
-| **ngxccc** | [@ngxccc](https://github.com/ngxccc) | 工程化规范设计、会话安全保护、网络域名动态解析 | **> 3,000+ 行** |
-| **Thuong Tin** | [@thuongtin](https://github.com/thuongtin) | 本地操作系统时区修复、macOS 数据目录沙箱隔离 | **~840+ 行** |
-| **GrootTheDeveloper** | [@GrootTheDeveloper](https://github.com/GrootTheDeveloper) | SQLite 启动性能调优、消息虚拟化渲染、CJK 中日韩字体按需加载 | **~370+ 行** |
+| **TIPC1110** | [@TIPC1110](https://github.com/TIPC1110) | 核心协议架构、VoIP 通话引擎、egui 客户端框架、通讯录与社交动态页、跨平台编译及 v0.0.6 发布 | **> 75,600+ 行** |
+| **Đỗ Trung Thành (thanhdo1110)** | [@thanhdo1110](https://github.com/thanhdo1110) | 模块化 GUI 重构、Atom One Dark 设计系统、MCP/REST API、定时消息、GitHub API 自动更新、修复 25+ 项 Issue 并发布 v0.0.5 / v0.0.7 | **> 35,600+ 行** 🏆 |
+| **Thuong Tin** | [@thuongtin](https://github.com/thuongtin) | 提交 10 项 PR：本地时区修复、数据目录沙箱、macOS 辅助组件、会话原子写入、媒体缓存、自动更新器、消息状态模型、消息精准唯一标识合并不重复 (#61)、引用跳转定位 (#60)、macOS 通知权限管理 (#59) | **> 11,500+ 行** 🏆 |
+| **ngxccc** | [@ngxccc](https://github.com/ngxccc) | 提交 5 项 PR：工程化规范设计、会话安全保护、网络域名动态解析 | **> 3,400+ 行** |
+| **GrootTheDeveloper** | [@GrootTheDeveloper](https://github.com/GrootTheDeveloper) | 提交 8 项 PR：SQLite 启动性能调优、群组/云端历史断点同步(#45)、后台轮询计时器(#46)、消息虚拟化渲染、CJK 字体按需加载 | **~950+ 行** |
 
 > *注: 涵盖所有报告缺陷、提出建议和提交 PR 的完整贡献者荣誉墙请查阅 [在线贡献者名录](https://ctdozlite.ctdo.net/contributors.html)。*
 

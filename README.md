@@ -29,12 +29,15 @@ Client Zalo Desktop viết bằng Rust (`eframe`/`egui` + `ratatui`), giao tiế
 
 Bản Zalo PC chính thức đóng gói trên Electron thường chiếm 350–600 MB RAM khi chạy nền. `ctdozlite` được viết lại từ đầu bằng Rust dựa trên phân tích luồng giao thức của Zalo Web/PC (`zpw_ver=694`, `zpw_type=30`), tập trung vào tốc độ phản hồi, mức tiêu thụ tài nguyên thấp và khả năng đóng gói thành một binary duy nhất.
 
-| Thông số | Zalo PC (Electron) | ctdozlite (Rust) |
+| Chỉ số thực tế | Zalo PC 26.10.11 (Electron) | ctdozlite (Rust Native) |
 |---|---|---|
-| Bộ nhớ RAM khi chạy nền | 350 – 550 MB | ~15 – 28 MB (tùy số lượng ảnh/sticker đang mở) |
-| Dung lượng bản build | ~180 MB | ~11 MB (single binary) |
-| Khởi động & nạp hội thoại | 2.5 – 4.0s | < 100ms (nạp từ cache cục bộ trước khi đồng bộ mạng) |
-| Phụ thuộc runtime | Chromium, Node.js | Native binary (`ffmpeg` tùy chọn nếu gọi video) |
+| **RAM khi chờ (Working Set)** | **1.800 – 1.975 MB** | **~149,5 MB** (tiết kiệm hơn 92% RAM) |
+| **Số tiến trình chạy nền** | 7 tiến trình | **1 tiến trình duy nhất** |
+| **Kích thước file thực thi** | ~136 MB | **~17,2 MB** (bản phát hành strip symbols) |
+| **Thời gian khởi chạy cửa sổ** | 2.5 – 4.0s | **~0,18 – 0,19 giây** (< 200ms) |
+| **Phụ thuộc runtime** | Chromium, Node.js | Native binary thuần (`ffmpeg` tùy chọn nếu gọi video) |
+
+> *Dữ liệu đo thực tế trên Windows 11 (Intel Core i7-12700H, PowerShell `Get-Process WorkingSet64`, đo trung vị sau 15 giây chạy ổn định ở trạng thái chờ).*
 
 ---
 
@@ -64,35 +67,53 @@ Bản Zalo PC chính thức đóng gói trên Electron thường chiếm 350–6
 
 ---
 
-## Cấu trúc mã nguồn
+## Cấu trúc & Quy mô mã nguồn (Codebase LoC — `v0.0.7`)
+
+| Hạng mục | Số tệp | Tổng số dòng | Dòng mã thực thi (Code LoC) | Chú thích & Dòng trống |
+| :--- | :---: | :---: | :---: | :---: |
+| **Rust Source (`src/*.rs`)** | 44 | **54,485** | **49,540** | 4,945 |
+| **Integration Tests (`tests/*.rs`)** | 4 | **1,193** | **1,081** | 112 |
+| **Tài liệu & Kiến trúc (`docs/*.md`, `README*`)** | 48 | **4,689** | **3,022** | 1,667 |
+| **Đóng gói & CI/CD (`packaging/`, `.github/`)** | 22 | **1,262** | **1,115** | 147 |
+| **Tổng cộng toàn kho (Tracked Repository)** | **118** | **61,629 lines** | **54,758 lines** | **6,871 lines** |
 
 ```text
-src/
-├── main.rs            # Điểm vào CLI, phân tích tham số khởi chạy (--gui, --tui, --dev, --logout)
-├── lib.rs             # Khai báo các module thư viện
-├── session.rs         # Quản lý phiên, cookie jar (zpw_sek), khóa giải mã (zpw_enk) và bảng domain
-├── crypto.rs          # AES-128/256-CBC, PKCS7, MD5 và hàm tạo chữ ký signkey
-├── param_cipher.rs    # Mã hóa tham số xác thực ParamCipher v2 (zcid, zcid_ext, encrypt_key)
-├── qr.rs              # Luồng sinh mã QR, long-polling chờ quét và xác nhận đăng nhập
-├── login.rs           # Đăng nhập mật khẩu (PasswordCipher), getServerInfo, getLoginInfo
-├── socket.rs          # Kết nối WebSocket thời gian thực (zpw_ws)
-├── chat.rs            # API hội thoại, tin nhắn, nhóm, đính kèm, link preview và tìm kiếm sticker
-├── store.rs           # Lưu trữ SQLite (zalo_history.db) và đồng bộ lịch sử
-├── call.rs            # Báo hiệu VoIP, điều khiển phiên gọi 1-1 và bắt tay ZRTP
-├── media.rs           # Đóng gói/giải mã RTP/RTCP, H.264 FU-A và luồng webcam/video
-├── audio.rs           # Thu/phát âm thanh thời gian thực (cpal + libopus)
-├── voip_log.rs        # Ghi nhận chẩn đoán luồng gói tin RTP/RTCP (voip.log)
-├── logger.rs          # Bộ thu thập log mạng và quét mã lỗi cho chế độ --dev
-├── tui.rs             # Giao diện dòng lệnh (ratatui)
-└── gui/               # Giao diện đồ họa native (eframe/egui)
-    ├── theme.rs       # Bảng màu Dark/Light, vector icon Lucide, nạp font hệ thống
-    ├── stickers.rs    # Sticker picker, auto-suggest khi gõ và bộ lọc nhãn dán
-    ├── worker.rs      # Luồng nền Tokio xử lý lệnh mạng và prefetch ảnh/sticker
-    ├── workspace.rs   # Bố cục cột danh bạ, khung chat chính và ngăn thông tin hội thoại
-    ├── messages.rs    # Render bong bóng tin nhắn, reaction, quote, ảnh clipboard
-    └── modals.rs      # Hộp thoại cài đặt, cuộc gọi, xem ảnh, tra cứu SĐT và Dev Inspector
+src/ (54,096 lines across 44 files)
+├── main.rs            # (388 lines)   Điểm vào CLI, phân tích tham số (--gui, --tui, --dev, --profile, --proxy)
+├── lib.rs             # (39 lines)    Khai báo các module thư viện
+├── chat.rs            # (7,188 lines) API hội thoại, tin nhắn, nhóm, RTF/Markdown, link preview & tìm kiếm sticker
+├── call.rs            # (4,712 lines) Báo hiệu VoIP, điều khiển phiên gọi 1-1 và bắt tay ZRTP
+├── tui.rs             # (2,847 lines) Giao diện dòng lệnh (ratatui)
+├── media.rs           # (2,738 lines) Đóng gói/giải mã RTP/RTCP, H.264 FU-A và luồng webcam/video
+├── gui.rs             # (2,503 lines) Khởi tạo trạng thái ZaloGuiApp, bộ lọc, đồng bộ & vòng lặp sự kiện
+├── session.rs         # (1,738 lines) Quản lý phiên, cookie jar (zpw_sek), khóa (zpw_enk), proxy & multi-profile
+├── store.rs           # (1,068 lines) Lưu trữ SQLite (zalo_history.db) và đồng bộ lịch sử
+├── api_mcp.rs         # (947 lines)   Máy chủ HTTP REST API cục bộ & giao thức MCP (JSON-RPC 2.0)
+├── updater.rs         # (768 lines)   Tự động kiểm tra, tải và xác thực chữ ký/SHA-256 bản cập nhật GitHub
+├── voip_log.rs        # (661 lines)   Ghi nhận chẩn đoán luồng gói tin RTP/RTCP (voip.log)
+├── reactions.rs       # (656 lines)   Quản lý trạng thái thả cảm xúc (reaction) tin nhắn
+├── unread.rs          # (644 lines)   Theo dõi bộ đếm tin nhắn chưa đọc và trạng thái tắt thông báo (mute)
+├── socket.rs          # (604 lines)   Kết nối WebSocket thời gian thực (zpw_ws)
+├── scheduler.rs       # (504 lines)   Bộ lập lịch gửi tin nhắn hẹn giờ & nhắc hẹn cục bộ
+├── feed.rs            # (498 lines)   API Nhật ký (Social Timeline, hồ sơ & album ảnh bạn bè)
+├── qr.rs              # (477 lines)   Luồng sinh mã QR, long-polling chờ quét và xác nhận đăng nhập
+├── media_resources.rs # (453 lines)   Quản lý bộ nhớ đệm tài nguyên đa phương tiện & ảnh
+├── login.rs           # (407 lines)   Đăng nhập mật khẩu (PasswordCipher), getServerInfo, getLoginInfo
+├── data_dir.rs        # (391 lines)   Phân giải thư mục dữ liệu đa nền tảng (--data-dir / --profile)
+├── history_sync.rs    # (347 lines)   Đồng bộ lịch sử phân trang và giải mã gói backup từ điện thoại
+├── message_model.rs   # (329 lines)   Mô hình định danh và hợp nhất trạng thái tin nhắn
+├── logger.rs          # (255 lines)   Bộ thu thập log mạng và quét mã lỗi cho chế độ --dev
+├── param_cipher.rs    # (222 lines)   Mã hóa tham số xác thực ParamCipher v2 (zcid, zcid_ext, encrypt_key)
+├── crypto.rs          # (146 lines)   AES-128/256-CBC, PKCS7, MD5 và hàm tạo chữ ký signkey
+├── audio.rs           # (142 lines)   Thu/phát âm thanh thời gian thực (cpal + libopus)
+└── gui/               # Giao diện đồ họa native (eframe/egui — 19,883 lines)
+    ├── modals.rs      # (6,958 lines) Trang Danh bạ, Nhật ký, Hẹn giờ, Cài đặt, Cuộc gọi & Dev Inspector
+    ├── workspace.rs   # (4,483 lines) Bố cục thanh điều hướng, cột hội thoại, khung chat chính & ngăn thông tin
+    ├── worker.rs      # (3,053 lines) Luồng nền Tokio xử lý lệnh mạng, đồng bộ và prefetch ảnh/sticker
+    ├── messages.rs    # (2,612 lines) Render bong bóng tin nhắn, Markdown/RTF, reaction, quote, ảnh clipboard
+    ├── stickers.rs    # (1,844 lines) Sticker picker, gói Mèo Ami Bụng Bự (GIF), auto-suggest & bộ lọc nhãn dán
+    └── theme.rs       # (933 lines)   Bảng màu Dark/Light, vector icon Lucide, nạp font hệ thống
 ```
-
 ---
 
 ## Tải bản cài đặt dựng sẵn
@@ -254,16 +275,15 @@ Dự án ghi nhận các thành viên có đóng góp mã nguồn tiêu biểu t
 
 | Contributor | GitHub | Đóng góp chính | Khối lượng |
 | :--- | :--- | :--- | :---: |
-| **TIPC1110** | [@TIPC1110](https://github.com/TIPC1110) | Kiến trúc lõi, VoIP call engine, egui framework, đa nền tảng | **> 73,000+ lines** |
-| **thanhdo1110** | [@thanhdo1110](https://github.com/thanhdo1110) | Tái cấu trúc GUI modular, tối ưu hóa giao diện Atom One Dark | **> 14,000+ lines** |
-| **ngxccc** | [@ngxccc](https://github.com/ngxccc) | Tiêu chuẩn kỹ thuật, bảo toàn session an toàn, phân giải domain mạng | **> 3,000+ lines** |
-| **Thuong Tin** | [@thuongtin](https://github.com/thuongtin) | Bản vá múi giờ hệ điều hành, tùy biến thư mục dữ liệu macOS | **~840+ lines** |
-| **GrootTheDeveloper** | [@GrootTheDeveloper](https://github.com/GrootTheDeveloper) | Tối ưu hóa khởi động SQLite, virtualization tin nhắn, lazy load Font CJK | **~370+ lines** |
-
+| **TIPC1110** | [@TIPC1110](https://github.com/TIPC1110) | Kiến trúc lõi, VoIP call engine, egui framework, Danh bạ & Nhật ký Social, đa nền tảng & phát hành v0.0.6 | **> 75,600+ lines** |
+| **Đỗ Trung Thành (thanhdo1110)** | [@thanhdo1110](https://github.com/thanhdo1110) | Kiến trúc GUI modular, Atom One Dark, MCP/REST API, Hẹn giờ tin nhắn, Auto-Update GitHub API, xử lý 25+ Issues & phát hành v0.0.5 / v0.0.7 | **> 35,600+ lines** 🏆 |
+| **Thuong Tin** | [@thuongtin](https://github.com/thuongtin) | Loạt 10 PRs: Múi giờ OS, tùy biến data-dir, helpers macOS, session atomic, media cache, updater, message state, định danh tin nhắn (#61), điều hướng trích dẫn (#60), quyền thông báo macOS (#59) | **> 11,500+ lines** 🏆 |
+| **ngxccc** | [@ngxccc](https://github.com/ngxccc) | Loạt 5 PRs: Tiêu chuẩn kỹ thuật, bảo toàn session an toàn, phân giải domain mạng | **> 3,400+ lines** |
+| **GrootTheDeveloper** | [@GrootTheDeveloper](https://github.com/GrootTheDeveloper) | Loạt 8 PRs: Tối ưu khởi động SQLite, đồng bộ lịch sử nhóm/Cloud (#45), poll timer worker (#46), virtualization chat, lazy load Font CJK | **~950+ lines** |
 > *Ghi chú: Toàn bộ danh sách vinh danh mọi cá nhân đóng góp (báo lỗi, đề xuất tính năng, pull request) được cập nhật công khai tại trang [Người đóng góp](https://ctdozlite.ctdo.net/contributors.html).*
 
 <details>
-<summary><b>👉 Nhấn vào đây để xem toàn bộ danh sách 66 người đóng góp (Community & GitHub)</b></summary>
+<summary><b>👉 Nhấn vào đây để xem toàn bộ danh sách 71 người đóng góp (Community & GitHub)</b></summary>
 
 | # | Người đóng góp | Hạng mục | Đóng góp chi tiết |
 | :---: | :--- | :--- | :--- |
@@ -331,8 +351,13 @@ Dự án ghi nhận các thành viên có đóng góp mã nguồn tiêu biểu t
 | 62 | **@quangnguyenn98** | `GitHub PR` | PR #26: ci(macos): build native Intel (x86_64) .dmg alongside Apple Silicon |
 | 63 | **Ông An Bà Ngân (@OngAnBaNgan)** | `GitHub Issue` | Issue #34: Rủi ro pháp lý về thương hiệu & bản quyền từ VNG và đề xuất hướng khắc phục (Disclaimer, không đóng gói tài nguyên bản quyền, cam kết phi thương mại). |
 | 64 | **@maiminhdung** | `GitHub Issue` | Issue #33: Báo lỗi phông chữ ở mục đăng nhập và không hiển thị tên/logo ứng dụng khi chuyển tab trên Nobara Linux 44 (GNOME Wayland). |
-| 65 | **Thuong Tin (@thuongtin)** | `GitHub PR #40 & #41` | Đóng góp PR #40 (hiển thị giờ tin nhắn theo múi giờ OS) và PR #41 (tùy chọn --data-dir, --print-data-dir, bảo đảm quyền ghi an toàn cho macOS app bundle). |
-| 66 | **Dang Phuc An Khang (@GrootTheDeveloper)** | `GitHub PRs #43, #44, #47, #48, #49, #50` | Đóng góp loạt 6 Pull Requests tối ưu hóa: Sửa query tin nhắn mới nhất (#43), Tăng tốc mở app với SQLite lớn (#44), Lazy load Font CJK (#48), Virtualize danh sách chat tránh giật lag (#47), Sửa icon Windows GNU (#49), Thu nhỏ dung lượng binary release (#50). |
+| 65 | **Thuong Tin (@thuongtin)** | `GitHub 10 PRs (> 11,500 LoC)` | Tác giả của 10 Pull Requests quan trọng: PR #40 (múi giờ OS), PR #41 (--data-dir), PR #51 (macOS native helpers), PR #52 (session atomic save), PR #53 (media cache & admission), PR #54 (transactional updater), PR #55 (message state & reactions), PR #59 (macOS notification permissions), PR #60 (quote message navigation), PR #61 (exact message identity deduplication). Đóng góp hơn 11,500 dòng code. |
+| 66 | **Dang Phuc An Khang (@GrootTheDeveloper)** | `GitHub 8 PRs (#43–#50, ~950 LoC)` | Đóng góp loạt 8 Pull Requests tối ưu hóa & đồng bộ: Sửa query tin nhắn mới nhất (#43), Tăng tốc mở app với SQLite lớn (#44), Đồng bộ lịch sử nhóm & Cloud (#45), Chuyển poll timer sang worker (#46), Virtualize danh sách chat (#47), Lazy load Font CJK (#48), Sửa icon Windows GNU (#49), Thu nhỏ dung lượng binary release (#50). |
+| 67 | **Đỗ Trung Thành (@thanhdo1110 / DO TRUNG THANH)** | `Core Maintainer (> 35,100 LoC)` | Tái cấu trúc GUI modular, thiết kế Atom One Dark, xây dựng MCP Server & HTTP REST API, hệ thống hẹn giờ gửi tin nhắn, tự động cập nhật qua GitHub Releases API, sửa lỗi trùng tên hội thoại (#63), giải quyết triệt để hơn 20 GitHub Issues và phát hành bản v0.0.5. |
+| 68 | **@congnvp** | `GitHub Issue` | Issue #35: Đề xuất bổ sung máy chủ HTTP REST API cục bộ và giao thức MCP (Model Context Protocol). |
+| 69 | **@vuduc810** | `GitHub Issue` | Issue #38: Đề xuất tính năng hẹn giờ gửi tin nhắn (Schedule message) tự động. |
+| 70 | **@thedtvn** | `GitHub Issue` | Issue #58: Báo cáo chi tiết lỗi Windows Defender nhận diện nhầm bộ cài setup.exe v0.0.3 là Trojan (False Positive), giúp team khắc phục triệt để trong v0.0.4. |
+| 71 | **@buildertv** | `GitHub Issue` | Issue #63: Báo cáo lỗi gộp nhầm tin nhắn và nhảy sai hội thoại khi hai tài khoản Zalo có tên hiển thị trùng nhau. |
 
 </details>
 
