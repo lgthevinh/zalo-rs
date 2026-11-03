@@ -1,38 +1,32 @@
 # Rust build artifacts
 target/
-dist/
 
-# Active session credentials and tokens (CRITICAL: NEVER COMMIT)
-session.json
+# Session credentials and tokens (NEVER COMMIT)
 session*.json
 session*.bak
+.env
 
-# Local message caches & databases
-threads_cache.json
-threads_cache*.json
-app_settings.json
-theme.json
-custom_stickers.json
-autoreply_rules.json
+# Local databases
 *.db
 *.db-shm
 *.db-wal
-zalo_history.db
+*.sqlite
 
-# Media and packet capture caches
-stickers_cache/
+# Packet captures and dumps (contain session material)
 dump/
-qr.png
+captured.txt
 *.flow
-Zalo_app_icon_redesign_*.jpg
-call_relay.json
-call_trace.log
+*.saz
+*.pcap
+*.pcapng
+qr.png
 
-# Generated graph/tooling output
-graphify-out/
-/book/
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
 
-# Local agent tooling & skill kit (machine-specific, symlinked paths)
+# Local agent tooling (machine-specific)
 .claude/
 .omp/
 .agents/
@@ -40,21 +34,6 @@ graphify-out/
 .engineered-config.json
 .scratch/
 
-# Temporary and backup files
-*.tmp
-*.bak
-*.log
-src.bak*
-*.zip
-.env
-
-# Python bytecode
-__pycache__/
-*.py[cod]
-
 # OS files
 .DS_Store
 Thumbs.db
-
-# mdBook output (docs site)
-book/
